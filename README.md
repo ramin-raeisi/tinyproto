@@ -238,7 +238,7 @@ If you find the library useful and want to [support future development](https://
 
 The project is released under dual license: GPLv3, or Commercial license.
 
-Copyright 2016-2022 (C) Alexey Dynda
+Copyright 2016-2024 (C) Alexey Dynda
 
 This file is part of Tiny Protocol Library.
 
