@@ -64,8 +64,8 @@ public:
      */
     IPacket(char *buf, int size)
     {
-        m_size = static_cast<int>(size);
-        m_buf = (uint8_t *)buf;
+        m_size = size;
+        m_buf = reinterpret_cast<uint8_t *>(buf);
     }
 
     IPacket(const IPacket &packet)
@@ -110,7 +110,7 @@ public:
      */
     void put(char chr)
     {
-        put((uint8_t)chr);
+        put(static_cast<uint8_t>(chr));
     }
 
     /**
