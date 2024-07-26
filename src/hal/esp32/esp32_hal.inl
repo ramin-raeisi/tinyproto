@@ -26,6 +26,8 @@
     For further information contact via email on github account.
 */
 
+#include "esp_timer.h"
+
 void tiny_mutex_create(tiny_mutex_t *mutex)
 {
     *mutex = xSemaphoreCreateMutex();

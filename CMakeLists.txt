@@ -30,7 +30,7 @@ if (NOT DEFINED COMPONENT_DIR)
 else()
 
     idf_component_register(SRCS ${SOURCE_FILES}
-                           INCLUDE_DIRS "src")
+                           INCLUDE_DIRS "src" PRIV_REQUIRES esp_timer)
 
 endif()
 
