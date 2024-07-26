@@ -56,6 +56,8 @@ extern "C"
 #include "mingw32/mingw32_hal.h"
 #elif defined(_WIN32)
 #include "win32/win32_hal.h"
+#elif defined(CPU_S32K144HFT0VLLT)
+#include "freertos/freertos_hal.h"
 #else
 #info "Platform not supported. Multithread support is disabled"
 #include "no_platform/no_platform_hal.h"
