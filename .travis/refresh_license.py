@@ -29,6 +29,7 @@
 import os
 import datetime
 import hashlib
+import re
 
 exclude_paths = [
     './.git',
@@ -103,23 +104,16 @@ def check_and_update_license(name, new_license = False):
     for i in range(min(10,len(lines))):
         if "Copyright" in lines[i]:
             now = datetime.datetime.now()
-            ccc = "C"
-            if "(c)" in lines[i]:
-                ccc = "(c)"
-            if "Copyright {}".format(ccc) in lines[i]:
-                YEAR = lines[i].split("Copyright {}".format(ccc))[1].split(',')[0].strip()
-            else:
-                YEAR = lines[i].split("Copyright")[1].split(ccc)[0].strip()
-            if YEAR.endswith(','):
-                YEAR = YEAR[:-1]
-            if not YEAR.endswith("{}".format(now.year)):
-                if YEAR.endswith("-{}".format(now.year-1)):
-                    YEAR = YEAR[:-5]
-                    YEAR += "-{}".format(now.year)
-                elif YEAR.endswith("{}".format(now.year-1)):
-                    YEAR += "-{}".format(now.year)
-                else:
-                    YEAR += ",{}".format(now.year)
+            reg = re.compile(r'\d{4}')
+            YEAR = [int(x) for x in reg.findall(lines[i])]
+            if (len(YEAR) == 0):
+                YEAR = [now.year]
+            if (len(YEAR) > 0 and YEAR[-1] != now.year):
+                YEAR.append(now.year)
+            result = "{}".format(YEAR[0])
+            if (len(YEAR) > 1):
+                result += "-{}".format(YEAR[-1])
+            YEAR = result
             copyright_exists = True
     insert_position = 0
     if not copyright_exists:
