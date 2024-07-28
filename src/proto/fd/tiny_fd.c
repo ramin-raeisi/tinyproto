@@ -28,124 +28,21 @@
 
 #include "tiny_fd.h"
 #include "tiny_fd_int.h"
+#include "tiny_fd_defines_int.h"
+#include "tiny_fd_peers_int.h"
+#include "tiny_fd_service_queue_int.h"
+#include "tiny_fd_data_queue_int.h"
 #include "hal/tiny_types.h"
 #include "hal/tiny_debug.h"
 
 #include <string.h>
 
-#ifndef TINY_FD_DEBUG
-#define TINY_FD_DEBUG 0
-#endif
-
-#if TINY_FD_DEBUG
-#define LOG(lvl, fmt, ...) TINY_LOG(lvl, fmt, ##__VA_ARGS__)
-#else
-#define LOG(...)
-#endif
-
-#define HDLC_I_FRAME_BITS 0x00
-#define HDLC_I_FRAME_MASK 0x01
-
-#define HDLC_S_FRAME_BITS 0x01
-#define HDLC_S_FRAME_MASK 0x03
-#define HDLC_S_FRAME_TYPE_REJ 0x04
-#define HDLC_S_FRAME_TYPE_RR 0x00
-#define HDLC_S_FRAME_TYPE_MASK 0x0C
-
-#define HDLC_U_FRAME_BITS 0x03
-#define HDLC_U_FRAME_MASK 0x03
-// 2 lower bits of the command id's are zero, because they are covered by U_FRAME_BITS
-#define HDLC_U_FRAME_TYPE_UA 0x60
-#define HDLC_U_FRAME_TYPE_FRMR 0x84
-#define HDLC_U_FRAME_TYPE_RSET 0x8C
-#define HDLC_U_FRAME_TYPE_SABM 0x2C
-#define HDLC_U_FRAME_TYPE_SNRM 0x80
-#define HDLC_U_FRAME_TYPE_DISC 0x40
-#define HDLC_U_FRAME_TYPE_MASK 0xEC
-
-#define HDLC_P_BIT 0x10
-#define HDLC_F_BIT 0x10
-
-#define HDLC_CR_BIT 0x02
-#define HDLC_E_BIT 0x01
-#define HDLC_PRIMARY_ADDR (TINY_FD_PRIMARY_ADDR << 2)
-
-enum
-{
-    FD_EVENT_TX_SENDING = 0x01,            // Global event
-    FD_EVENT_TX_DATA_AVAILABLE = 0x02,     // Global event
-    FD_EVENT_QUEUE_HAS_FREE_SLOTS = 0x04,  // Global event
-    FD_EVENT_CAN_ACCEPT_I_FRAMES = 0x08,   // Local event
-    FD_EVENT_HAS_MARKER          = 0x10,   // Global event
-};
-
-static const uint8_t seq_bits_mask = 0x07;
 
 static void on_frame_read(void *user_data, uint8_t *data, int len);
 static void on_frame_send(void *user_data, const uint8_t *data, int len);
 
 ///////////////////////////////////////////////////////////////////////////////
 // Helper functions
-///////////////////////////////////////////////////////////////////////////////
-
-static uint8_t inline __is_primary_address(uint8_t address)
-{
-    address &= ~(HDLC_CR_BIT);
-    return address == ( HDLC_PRIMARY_ADDR | HDLC_E_BIT );
-}
-
-///////////////////////////////////////////////////////////////////////////////
-
-static uint8_t inline __is_primary_station(tiny_fd_handle_t handle)
-{
-    return __is_primary_address(handle->addr);
-}
-
-///////////////////////////////////////////////////////////////////////////////
-
-
-static uint8_t inline __is_secondary_station(tiny_fd_handle_t handle)
-{
-    return !__is_primary_station( handle );
-}
-
-///////////////////////////////////////////////////////////////////////////////
-
-static uint8_t __address_field_to_peer(tiny_fd_handle_t handle, uint8_t address)
-{
-    // Always clear C/R bit (0x00000010) when comparing addresses
-    address &= (~HDLC_CR_BIT);
-    // Exit, if extension bit is not set.
-    if ( !(address & HDLC_E_BIT) )
-    {
-        // We do not support this format for now.
-        return 0xFF;
-    }
-    // If our station is SECONDARY station, then we must check that the frame is for us
-    if ( __is_secondary_station( handle ) || handle->mode == TINY_FD_MODE_ABM )
-    {
-        // Check that the frame is for us
-        return address == handle->addr ? 0 : 0xFF;
-    }
-    // This code works only for primary station in NRM mode
-    for ( uint8_t peer = 0; peer < handle->peers_count; peer++ )
-    {
-        if ( handle->peers[peer].addr == address )
-        {
-            return peer;
-        }
-    }
-    // Return "NOT found peer"
-    return 0xFF;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-
-static uint8_t __peer_to_address_field(tiny_fd_handle_t handle, uint8_t peer)
-{
-    return handle->peers[peer].addr & (~HDLC_CR_BIT);
-}
-
 ///////////////////////////////////////////////////////////////////////////////
 
 static uint8_t __switch_to_next_peer(tiny_fd_handle_t handle)
@@ -177,27 +74,6 @@ static inline uint8_t __number_of_awaiting_tx_i_frames(tiny_fd_handle_t handle, 
 
 ///////////////////////////////////////////////////////////////////////////////
 
-static inline bool __has_unconfirmed_frames(tiny_fd_handle_t handle, uint8_t peer)
-{
-    return (handle->peers[peer].confirm_ns != handle->peers[peer].last_ns);
-}
-
-///////////////////////////////////////////////////////////////////////////////
-
-static inline bool __all_frames_are_sent(tiny_fd_handle_t handle, uint8_t peer)
-{
-    return (handle->peers[peer].last_ns == handle->peers[peer].next_ns);
-}
-
-///////////////////////////////////////////////////////////////////////////////
-
-static inline uint32_t __time_passed_since_last_i_frame(tiny_fd_handle_t handle, uint8_t peer)
-{
-    return (uint32_t)(tiny_millis() - handle->peers[peer].last_i_ts);
-}
-
-///////////////////////////////////////////////////////////////////////////////
-
 static inline uint32_t __time_passed_since_last_frame_received(tiny_fd_handle_t handle, uint8_t peer)
 {
     return (uint32_t)(tiny_millis() - handle->peers[peer].last_ka_ts);
@@ -208,54 +84,6 @@ static inline uint32_t __time_passed_since_last_frame_received(tiny_fd_handle_t 
 static inline uint32_t __time_passed_since_last_marker_seen(tiny_fd_handle_t handle)
 {
     return (uint32_t)(tiny_millis() - handle->last_marker_ts);
-}
-
-///////////////////////////////////////////////////////////////////////////////
-
-static tiny_fd_frame_info_t *__put_u_s_frame_to_tx_queue(tiny_fd_handle_t handle, int type, const void *data, int len)
-{
-    tiny_fd_frame_info_t *slot = tiny_fd_queue_allocate( &handle->frames.s_queue, type, ((const uint8_t *)data) + 2, len - 2 );
-    // Check if space is actually available
-    if ( slot != NULL )
-    {
-        slot->header.address = ((const uint8_t *)data)[0];
-        slot->header.control = ((const uint8_t *)data)[1];
-        LOG(TINY_LOG_DEB, "[%p] QUEUE SU-PUT: [%02X] [%02X]\n", handle, slot->header.address, slot->header.control);
-        tiny_events_set(&handle->events, FD_EVENT_TX_DATA_AVAILABLE);
-        return slot;
-    }
-    else
-    {
-        LOG(TINY_LOG_WRN, "[%p] Not enough space for S- U- Frames. Retransmissions may occur\n", handle);
-    }
-    return slot;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-
-static bool __can_accept_i_frames(tiny_fd_handle_t handle, uint8_t peer)
-{
-    uint8_t next_last_ns = (handle->peers[peer].last_ns + 1) & seq_bits_mask;
-    bool can_accept = next_last_ns != handle->peers[peer].confirm_ns;
-    return can_accept;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-
-static bool __put_i_frame_to_tx_queue(tiny_fd_handle_t handle, uint8_t peer, const void *data, int len)
-{
-    tiny_fd_frame_info_t *slot = tiny_fd_queue_allocate( &handle->frames.i_queue, TINY_FD_QUEUE_I_FRAME, data, len );
-    // Check if space is actually available
-    if ( slot != NULL )
-    {
-        LOG(TINY_LOG_DEB, "[%p] QUEUE I-PUT: [%02X] [%02X]\n", handle, slot->header.address, slot->header.control);
-        slot->header.address = __peer_to_address_field( handle, peer );
-        slot->header.control = handle->peers[peer].last_ns << 1;
-        handle->peers[peer].last_ns = (handle->peers[peer].last_ns + 1) & seq_bits_mask;
-        tiny_events_set(&handle->events, FD_EVENT_TX_DATA_AVAILABLE);
-        return true;
-    }
-    return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -851,38 +679,6 @@ int tiny_fd_run_rx(tiny_fd_handle_t handle, read_block_cb_t read_func)
         return len;
     }
     return tiny_fd_on_rx_data(handle, buf, len);
-}
-
-///////////////////////////////////////////////////////////////////////////////
-
-static uint8_t *tiny_fd_get_next_s_u_frame_to_send(tiny_fd_handle_t handle, int *len, uint8_t peer, uint8_t address)
-{
-    uint8_t *data = NULL;
-    // LOG(TINY_LOG_DEB, "[%p] QUEUE SEARCH: [%02X] [%02X]\n", handle, address, TINY_FD_QUEUE_S_FRAME | TINY_FD_QUEUE_U_FRAME);
-    tiny_fd_frame_info_t *ptr = tiny_fd_queue_get_next( &handle->frames.s_queue, TINY_FD_QUEUE_S_FRAME | TINY_FD_QUEUE_U_FRAME, address, 0 );
-    if ( ptr != NULL )
-    {
-        // clear queue only, when send is done, so for now, use pointer data for sending only
-        data = (uint8_t *)&ptr->header;
-        *len = ptr->len + sizeof(tiny_frame_header_t);
-        if ( (data[1] & HDLC_S_FRAME_MASK) == HDLC_S_FRAME_BITS )
-        {
-            handle->peers[peer].sent_nr = ptr->header.control >> 5;
-        }
-#if TINY_FD_DEBUG
-        if ( (data[1] & HDLC_U_FRAME_MASK) == HDLC_U_FRAME_BITS )
-        {
-            LOG(TINY_LOG_INFO, "[%p] Sending U-Frame type=%02X with address [%02X] to %s\n", handle, data[1] & HDLC_U_FRAME_TYPE_MASK, data[0],
-                      __is_primary_station( handle ) ? "secondary" : "primary");
-        }
-        else if ( (data[1] & HDLC_S_FRAME_MASK) == HDLC_S_FRAME_BITS )
-        {
-            LOG(TINY_LOG_INFO, "[%p] Sending S-Frame N(R)=%02X, type=%s with address [%02X] to %s\n", handle, data[1] >> 5,
-                ((data[1] >> 2) & 0x03) == 0x00 ? "RR" : "REJ", data[0],  __is_primary_station( handle ) ? "secondary" : "primary");
-        }
-#endif
-    }
-    return data;
 }
 
 ///////////////////////////////////////////////////////////////////////////////

@@ -99,7 +99,7 @@ endif
 library: prep $(OBJ_LIB)
 	$(AR) rcs $(BLD)/$(TARGET_LIB) $(OBJ_LIB)
 
-install:
+install: library
 ifdef CONFIG_FOR_WINDOWS_BUILD
 	if not exist $(DESTDIR)\include mkdir $(DESTDIR)\include &\
 	xcopy src $(DESTDIR)\include /y /s &\
@@ -107,7 +107,7 @@ ifdef CONFIG_FOR_WINDOWS_BUILD
 else
 	mkdir -p $(DESTDIR)/include $(DESTDIR)/lib
 	cp -r $(BLD)/$(TARGET_LIB) $(DESTDIR)/lib/
-	DST=`realpath $(DESTDIR)` && cd src && find ./ -name \*.h -exec cp --parents {} $${DST}/include/ \; && cd ..
+	DST=`realpath $(DESTDIR)` && cd src && find ./ -name \*.h -not -name \*_int.h -exec cp --parents {} $${DST}/include/ \; && cd ..
 endif
 
 docs:
