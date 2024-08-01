@@ -14,7 +14,7 @@ fi
 
 rootpath=`pwd`
 
-for i in `cd $1/src && find . -name "*.h" && cd $rootpath`; do
+for i in `cd $1/src && find . -name "*.h" ! -name "*_int.h" && cd $rootpath`; do
     if [ ! -f "$2/include/$i" ]; then
         echo "Headers are not copied: $2/include/$i"
         exit 1
