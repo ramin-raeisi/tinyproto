@@ -1,5 +1,5 @@
 /*
-    Copyright 2022 (C) Alexey Dynda
+    Copyright 2022-2024 (C) Alexey Dynda
 
     This file is part of Tiny Protocol Library.
 
@@ -92,7 +92,7 @@ TEST(FD_MULTI, send_to_secondary_dual)
     FakeEndpoint &endpoint2 = conn.endpoint2();
     FakeEndpoint  endpoint3(conn.line2(), conn.line1(), 256, 256);
     TinyHelperFd primary(&endpoint1, 4096, TINY_FD_MODE_NRM, nullptr);
-    TinyHelperFd secondary(&endpoint2, 4096, TINY_FD_MODE_NRM, nullptr);
+    TinyHelperFd secondary1(&endpoint2, 4096, TINY_FD_MODE_NRM, nullptr);
     TinyHelperFd secondary2(&endpoint3, 4096, TINY_FD_MODE_NRM, nullptr);
 
     primary.setAddress( TINY_FD_PRIMARY_ADDR );
@@ -100,16 +100,16 @@ TEST(FD_MULTI, send_to_secondary_dual)
     primary.setPeersCount( 2 );
     primary.init();
 
-    secondary.setAddress( 1 );
-    secondary.setTimeout( 250 );
-    secondary.init();
+    secondary1.setAddress( 1 );
+    secondary1.setTimeout( 250 );
+    secondary1.init();
 
     secondary2.setAddress( 2 );
     secondary2.setTimeout( 250 );
     secondary2.init();
 
     // Run secondary station first, as it doesn't transmit until primary sends a marker
-    secondary.run(true);
+    secondary1.run(true);
     secondary2.run(true);
     primary.run(true);
 
@@ -122,13 +122,13 @@ TEST(FD_MULTI, send_to_secondary_dual)
     CHECK_EQUAL(TINY_SUCCESS, result);
 
     // wait until last frame arrives
-    secondary.wait_until_rx_count(1, 250);
-    CHECK_EQUAL(1, secondary.rx_count());
+    secondary1.wait_until_rx_count(1, 250);
+    CHECK_EQUAL(1, secondary1.rx_count());
     CHECK_EQUAL(0, secondary2.rx_count());
 
     result = primary.sendto(2, txbuf, sizeof(txbuf));
     secondary2.wait_until_rx_count(1, 250);
     CHECK_EQUAL(TINY_SUCCESS, result);
-    CHECK_EQUAL(1, secondary.rx_count());
+    CHECK_EQUAL(1, secondary1.rx_count());
     CHECK_EQUAL(1, secondary2.rx_count());
 }

@@ -70,18 +70,24 @@ static int hdlc_ll_send_end(hdlc_ll_handle_t handle);
 
 int hdlc_ll_init(hdlc_ll_handle_t *handle, hdlc_ll_init_t *init)
 {
+    if ( !init->buf )
+    {
+        LOG(TINY_LOG_ERR, "[HDLC] failed to init hdlc. buf=%p\n", init->buf);
+        return TINY_ERR_INVALID_DATA;
+    }
     *handle = NULL;
     // Aligning provided buffer for the system
-    uint8_t *buf = (uint8_t *)( ((uintptr_t)init->buf + TINY_ALIGN_STRUCT_VALUE - 1) & (~(TINY_ALIGN_STRUCT_VALUE - 1)) );
-    int buf_size = (int)(init->buf_size -  (buf - (uint8_t *)init->buf));
-    if ( !init->buf || buf_size < (int)sizeof(hdlc_ll_data_t) )
+    uint8_t *aligned_buf = (uint8_t *)( ((uintptr_t)init->buf + TINY_ALIGN_STRUCT_VALUE - 1) & (~(TINY_ALIGN_STRUCT_VALUE - 1)) );
+    int offset = aligned_buf - (uint8_t *)(init->buf);
+    int buf_size = (int)((uintptr_t)init->buf_size -  offset);
+    if ( buf_size < (int)sizeof(hdlc_ll_data_t) )
     {
         LOG(TINY_LOG_ERR, "[HDLC] failed to init hdlc. buf=%p, size=%i (%i required)\n", init->buf, init->buf_size,
             (int)(sizeof(hdlc_ll_data_t) + TINY_ALIGN_STRUCT_VALUE - 1));
         return TINY_ERR_OUT_OF_MEMORY;
     }
-    *handle = (hdlc_ll_handle_t)buf;
-    (*handle)->rx_buf = (uint8_t *)buf + sizeof(hdlc_ll_data_t);
+    *handle = (hdlc_ll_handle_t)aligned_buf;
+    (*handle)->rx_buf = (uint8_t *)aligned_buf + sizeof(hdlc_ll_data_t);
     (*handle)->rx_buf_size = buf_size - sizeof(hdlc_ll_data_t);
     (*handle)->crc_type = init->crc_type == HDLC_CRC_OFF ? 0 : init->crc_type;
     (*handle)->on_frame_read = init->on_frame_read;

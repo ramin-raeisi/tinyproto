@@ -103,7 +103,7 @@ extern "C"
 #else
 
 /// This macro is used internally for aligning the structures
-#define TINY_ALIGN_STRUCT_VALUE     (sizeof(uintptr_t))
+#define TINY_ALIGN_STRUCT_VALUE     (uintptr_t)(sizeof(uintptr_t))
 
 #endif
 
