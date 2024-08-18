@@ -1,9 +1,7 @@
 pub mod proto {
     pub mod crc;
     pub mod hdlc {
-        pub mod low_level {
-            pub mod hdlc;
-        }
+        pub mod low_level;
     }
 }
 

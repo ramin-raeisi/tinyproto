@@ -1,7 +1,7 @@
 extern crate tinyproto;
 
 use tinyproto::test;
-use tinyproto::proto::hdlc::low_level::hdlc::sub;
+use tinyproto::proto::hdlc::low_level::sub;
 
 fn main() {
     test();
