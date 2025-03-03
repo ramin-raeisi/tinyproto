@@ -139,6 +139,8 @@ extern "C"
 #define TINY_ERR_OUT_OF_MEMORY (-9)
 /// Unknown remote peer
 #define TINY_ERR_UNKNOWN_PEER (-10)
+/// IO error
+#define TINY_ERR_IO (-11)
 
 /** @} */
 

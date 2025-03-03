@@ -13,6 +13,7 @@ OBJ_UNIT_TEST = \
         unittest/helpers/tiny_light_helper.o \
         unittest/helpers/tiny_fd_helper.o \
         unittest/main.o \
+        unittest/tiny_crc_tests.o \
         unittest/hal_tests.o \
         unittest/packet_tests.o \
         unittest/hdlc_tests.o \

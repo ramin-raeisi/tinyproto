@@ -147,14 +147,15 @@ uint16_t chksum_byte(uint16_t sum, uint8_t data)
 
 uint16_t tiny_chksum(uint16_t sum, const uint8_t* data, int data_length)
 {
-    while ( data_length )
+    const uint8_t* end = data + data_length;
+    uint32_t tmp_sum = sum;
+
+    while (data < end)
     {
-        sum = sum + *data;
-        data++;
-        data_length--;
+        tmp_sum += *data++;
     }
 
-    return 0xFFFF - sum;
+    return (uint16_t)(0xFFFF - (tmp_sum & 0xFFFF));
 }
 
 #endif
