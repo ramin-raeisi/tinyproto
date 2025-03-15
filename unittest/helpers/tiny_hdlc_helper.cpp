@@ -28,6 +28,9 @@
 
 #include "tiny_hdlc_helper.h"
 #include <unistd.h>
+#include <memory>
+#include <thread>
+#include <chrono>
 
 TinyHdlcHelper::TinyHdlcHelper(FakeEndpoint *endpoint, const std::function<void(uint8_t *, int)> &onRxFrameCb,
                                const std::function<void(uint8_t *, int)> &onTxFrameCb, int rx_buf_size, hdlc_crc_t crc)
@@ -78,7 +81,7 @@ int TinyHdlcHelper::run_tx()
     {
         return hdlc_run_tx(&m_handle);
     }
-    usleep(1000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
     return TINY_SUCCESS;
 }
 
