@@ -1,0 +1,13 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "shell",
+			"label": "cmake_bld",
+			"command": "mkdir -p build && cd build && cmake .. -DUNITTEST=ON && cmake --build . && cd ..",
+			"group": "build",
+			"problemMatcher": [],
+			"detail": "CMake template build task"
+		}
+	]
+}
