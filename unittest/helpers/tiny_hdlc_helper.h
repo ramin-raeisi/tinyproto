@@ -33,6 +33,7 @@
 #include <thread>
 #include <atomic>
 #include <string.h>
+#include <string>
 #include "fake_endpoint.h"
 #include "proto/hdlc/high_level/hdlc.h"
 
