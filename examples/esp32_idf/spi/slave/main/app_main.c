@@ -174,7 +174,7 @@ void app_main()
 
     s_hdlc.crc_type = HDLC_CRC_16;
     s_hdlc.on_frame_read = on_receive;
-    s_hdlc.on_frame_sent = on_send;
+    s_hdlc.on_frame_send = on_send;
     s_hdlc.rx_buf = s_hdlc_rx_buffer;
     s_hdlc.rx_buf_size = sizeof(s_hdlc_rx_buffer);
 

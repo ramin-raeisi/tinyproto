@@ -64,7 +64,7 @@ static int on_frame_read(void *user_data, void *data, int len)
     return 0;
 }
 
-static int on_frame_sent(void *user_data, const void *data, int len)
+static int on_frame_send(void *user_data, const void *data, int len)
 {
     // This callback is called, when frame is sent
     fprintf(stderr, "Sent message '%.*s'\n", len, (char *)data);
@@ -154,7 +154,7 @@ int main(int argc, char *argv[])
     hdlc_struct_t conf{};
     conf.send_tx = nullptr;
     conf.on_frame_read = on_frame_read;
-    conf.on_frame_sent = on_frame_sent;
+    conf.on_frame_send = on_frame_send;
     conf.rx_buf = malloc(1024);
     conf.rx_buf_size = 1024;
     conf.crc_type = HDLC_CRC_16;
