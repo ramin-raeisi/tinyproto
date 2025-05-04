@@ -30,6 +30,7 @@
 #include <functional>
 #include <stdint.h>
 #include "fake_endpoint.h"
+#include <string>
 #include "proto/light/tiny_light.h"
 
 class TinyLightHelper

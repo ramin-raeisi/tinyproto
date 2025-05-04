@@ -33,6 +33,7 @@
 #include <stdint.h>
 #include <thread>
 #include <atomic>
+#include <string>
 #include "proto/fd/tiny_fd.h"
 #include "fake_endpoint.h"
 
