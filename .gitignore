@@ -30,6 +30,7 @@
 
 # Debug files
 *.dSYM/
+*.gcov
 
 
 # Added by cargo
