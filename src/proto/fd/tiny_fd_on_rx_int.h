@@ -245,7 +245,7 @@ static int __on_u_frame_read(tiny_fd_handle_t handle, uint8_t peer, void *data, 
             .control = HDLC_U_FRAME_TYPE_UA | HDLC_U_FRAME_BITS,
         };
         __put_u_s_frame_to_tx_queue(handle, TINY_FD_QUEUE_U_FRAME, &frame, 2);
-        if ( handle->peers[peer].state == TINY_FD_STATE_CONNECTED )
+        if ( handle->peers[peer].state != TINY_FD_STATE_DISCONNECTED && handle->peers[peer].state != TINY_FD_STATE_CONNECTING )
         {
             __switch_to_disconnected_state(handle, peer);
         }
