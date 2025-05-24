@@ -373,8 +373,7 @@ int tiny_fd_init(tiny_fd_handle_t *handle, tiny_fd_init_t *init)
     protocol->mode = init->mode;
     // Primary devices always have markers
     protocol->ka_timeout = 5000;
-    protocol->retry_timeout =
-        init->retry_timeout ? init->retry_timeout : (protocol->send_timeout / (init->retries + 1));
+    protocol->retry_timeout = init->retry_timeout ? init->retry_timeout : (protocol->send_timeout / (init->retries + 1));
     protocol->retries = init->retries;
     for (uint8_t peer = 0; peer < protocol->peers_count; peer++ )
     {
