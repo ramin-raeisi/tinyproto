@@ -2,7 +2,7 @@
 
 create_terminals() {
     # Create virtual terminals
-    socat -d -d pty,b115200,raw,echo=0,link=/tmp/sideA pty,b115200,raw,echo=0,link=/tmp/sideB &
+    socat -d -d -d pty,b115200,raw,echo=0,link=/tmp/sideA pty,b115200,raw,echo=0,link=/tmp/sideB &
     sleep 1
 }
 
