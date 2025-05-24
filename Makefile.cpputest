@@ -23,7 +23,8 @@ OBJ_UNIT_TEST = \
 
 
 unittest: $(OBJ_UNIT_TEST) library
-	$(CXX) $(CPPFLAGS) -o $(BLD)/unit_test $(OBJ_UNIT_TEST) -L$(BLD) -L$(CPPUTEST_HOME)/lib -lm -pthread -ltinyprotocol -lCppUTest -lCppUTestExt
+	$(CXX) $(CPPFLAGS) -o $(BLD)/unit_test $(OBJ_UNIT_TEST) -L$(BLD) -L$(CPPUTEST_HOME)/lib -lm -pthread \
+	    -ltinyprotocol -lCppUTest -lCppUTestExt
 
 check: unittest
 	$(BLD)/unit_test
@@ -37,9 +38,11 @@ coverage:
 	$(MAKE) ARCH=linux EXTRA_CPPFLAGS="--coverage" check
 	COVERALLS_REPO_TOKEN=4Ia7t9YDo22zQcFEnMYLh1tiWCRlBJlhk coveralls -b . \
 	    --exclude docs --exclude extra --exclude unittest --exclude bld --exclude tools --exclude examples \
+            --ignore-errors mismatch \
 	    --gcov-options '\-lp' --dryrun
-	lcov --base-directory . --directory . -c -o lcov.info
+	lcov --base-directory . --directory . -c -o lcov.info --rc geninfo_unexecuted_blocks=1
 	lcov --remove lcov.info "*unittest*" -o lcov.info # remove output for external libraries
 	lcov --remove lcov.info "/usr/include*" -o lcov.info # remove output for external libraries
+	# --ignore-errors mismatch,negative
 	# -rm -rf test_coverage
 	# genhtml -o test_coverage -t "tinyproto test coverage" --num-spaces 4 lcov.info
