@@ -38,7 +38,6 @@ coverage:
 	$(MAKE) ARCH=linux EXTRA_CPPFLAGS="--coverage" check
 	COVERALLS_REPO_TOKEN=4Ia7t9YDo22zQcFEnMYLh1tiWCRlBJlhk coveralls -b . \
 	    --exclude docs --exclude extra --exclude unittest --exclude bld --exclude tools --exclude examples \
-            --ignore-errors mismatch \
 	    --gcov-options '\-lp' --dryrun
 	lcov --base-directory . --directory . -c -o lcov.info
 	lcov --remove lcov.info "*unittest*" -o lcov.info # remove output for external libraries
