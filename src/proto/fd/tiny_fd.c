@@ -266,7 +266,6 @@ int tiny_fd_init(tiny_fd_handle_t *handle, tiny_fd_init_t *init)
     if ( (0 == init->on_read_cb) || (0 == init->buffer) || (0 == init->buffer_size) )
     {
         LOG(TINY_LOG_CRIT, "Invalid input data: null pointers%s", "\n");
-        TINY_ABORT();
         return TINY_ERR_INVALID_DATA;
     }
     if ( init->mtu == 0 )
@@ -276,7 +275,6 @@ int tiny_fd_init(tiny_fd_handle_t *handle, tiny_fd_init_t *init)
         if ( init->mtu < 1 )
         {
             LOG(TINY_LOG_CRIT, "Calculated mtu size is zero, no payload transfer is available%s", "\n");
-            TINY_ABORT();
             return TINY_ERR_OUT_OF_MEMORY;
         }
     }
@@ -284,19 +282,16 @@ int tiny_fd_init(tiny_fd_handle_t *handle, tiny_fd_init_t *init)
     {
         LOG(TINY_LOG_CRIT, "Too small buffer for FD protocol %i < %i\n", init->buffer_size,
             tiny_fd_buffer_size_by_mtu_ex(peers_count, init->mtu, init->window_frames, init->crc_type, 1));
-        TINY_ABORT();
         return TINY_ERR_OUT_OF_MEMORY;
     }
     if ( init->window_frames < 2 )
     {
         LOG(TINY_LOG_CRIT, "HDLC doesn't support less than 2-frames queue%s", "\n");
-        TINY_ABORT();
         return TINY_ERR_INVALID_DATA;
     }
     if ( !init->retry_timeout && !init->send_timeout )
     {
         LOG(TINY_LOG_CRIT, "HDLC uses timeouts for ACK, at least retry_timeout, or send_timeout must be specified%s", "\n");
-        TINY_ABORT();
         return TINY_ERR_INVALID_DATA;
     }
     memset(init->buffer, 0, init->buffer_size);
@@ -741,7 +736,6 @@ int tiny_fd_send_packet_to(tiny_fd_handle_t handle, uint8_t address, const void 
     if ( peer == 0xFF )
     {
         LOG(TINY_LOG_ERR, "[%p] PUT frame error: Unknown peer\n", handle);
-        TINY_ABORT();
         return TINY_ERR_UNKNOWN_PEER;
     }
     // Check frame size againts mtu
@@ -750,7 +744,6 @@ int tiny_fd_send_packet_to(tiny_fd_handle_t handle, uint8_t address, const void 
     if ( len > tiny_fd_queue_get_mtu( &handle->frames.i_queue ) )
     {
         LOG(TINY_LOG_ERR, "[%p] PUT frame error: data len %i is greater MTU %i\n", handle, len, handle->frames.i_queue.mtu);
-        TINY_ABORT();
         result = TINY_ERR_DATA_TOO_LARGE;
     }
     // Wait until there is room for new frame
@@ -782,7 +775,6 @@ int tiny_fd_send_packet_to(tiny_fd_handle_t handle, uint8_t address, const void 
                 result = TINY_ERR_TIMEOUT;
                 // !!!! If this log appears, then in the code of the protocol something is definitely wrong !!!!
                 LOG(TINY_LOG_ERR, "[%p] Wrong flag FD_EVENT_QUEUE_HAS_FREE_SLOTS\n", handle);
-                TINY_ABORT();
             }
             if ( __can_accept_i_frames( handle, peer ) )
             {
@@ -802,7 +794,6 @@ int tiny_fd_send_packet_to(tiny_fd_handle_t handle, uint8_t address, const void 
     else
     {
         LOG(TINY_LOG_ERR, "[%p] PUT frame timeout\n", handle);
-        TINY_ABORT();
         result = TINY_ERR_TIMEOUT;
     }
     return result;

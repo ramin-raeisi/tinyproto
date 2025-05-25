@@ -51,7 +51,6 @@ static tiny_fd_frame_info_t *__put_u_s_frame_to_tx_queue(tiny_fd_handle_t handle
     {
         // Not enough space in the queue, so we cannot put the frame to the queue
         LOG(TINY_LOG_ERR, "[%p] Not enough space for S- U- Frames. Retransmissions may occur\n", handle);
-        TINY_ABORT();
     }
     return slot;
 }

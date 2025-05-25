@@ -71,11 +71,15 @@ extern "C"
     {                                                                                                                  \
         if ( lvl < g_tiny_log_level )                                                                                  \
             fprintf(stderr, "%08" PRIu32 " ms: " fmt, tiny_millis(), ##__VA_ARGS__);                                   \
+        if ( lvl == TINY_LOG_ERR || lvl == TINY_LOG_CRIT )                                                            \
+            TINY_ABORT();                                                                                              \
     }
 #define TINY_LOG0(lvl, fmt)                                                                                            \
     {                                                                                                                  \
         if ( lvl < g_tiny_log_level )                                                                                  \
             fprintf(stderr, "%08" PRIu32 " ms: " fmt, tiny_millis());                                                  \
+        if ( lvl == TINY_LOG_ERR || lvl == TINY_LOG_CRIT )                                                            \
+            TINY_ABORT();                                                                                              \
     }
 #ifdef TINY_FILE_LOGGING
 void tiny_file_log(uintptr_t id, const char *fmt, ...);

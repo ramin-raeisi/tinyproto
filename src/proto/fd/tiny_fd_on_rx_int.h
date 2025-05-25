@@ -116,7 +116,6 @@ static int __check_received_frame(tiny_fd_handle_t handle, uint8_t peer, uint8_t
         // We need to inform remote side about this by sending REJ frame.
         // We want to see next_nr frame
         LOG(TINY_LOG_ERR, "[%p] Out of order I-Frame N(s)=%d\n", handle, ns);
-        TINY_ABORT();
         if ( !handle->peers[peer].sent_reject )
         {
             tiny_frame_header_t frame = {
