@@ -65,7 +65,7 @@ extern "C"
     typedef struct hdlc_ll_data_t
     {
         /**
-         * User-defined callback, which is called when new packet arrives from hw
+         * User-defined callback, which is called when new frame arrives from hw
          * channel. The context of this callback is context, where hdlc_ll_run_rx() is
          * called from.
          * @param user_data user-defined data
@@ -75,7 +75,7 @@ extern "C"
         on_frame_cb_t on_frame_read;
 
         /**
-         * User-defined callback, which is called when the packet is sent to TX
+         * User-defined callback, which is called when the frame is sent to TX
          * channel. The context of this callback is context, where hdlc_ll_run_tx() is
          * called from.
          * @param user_data user-defined data
@@ -110,10 +110,13 @@ extern "C"
         struct
         {
             int (*state)(hdlc_ll_handle_t handle, const uint8_t *data, int len);
-            uint8_t *data;
+            // pointer to the next byte in frame buffer
+            uint8_t *ptr;
             uint8_t escape;
-            uint8_t *frame_buf;
+            // pointer to the start of the frame buffer
+            uint8_t *active_frame_buf;
         } rx;
+
         struct
         {
             int (*state)(hdlc_ll_handle_t handle);

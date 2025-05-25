@@ -93,7 +93,7 @@ bool IHdlcLinkLayer::put(void *buf, int size, uint32_t timeout)
             tiny_events_set( &m_events, TX_QUEUE_FREE );
             result = true;
         }
-        else if ( hdlc_ll_put(m_handle, buf, size) == TINY_SUCCESS )
+        else if ( hdlc_ll_put_frame(m_handle, buf, size) == TINY_SUCCESS )
         {
             m_tempBuffer = buf;
             tiny_events_set( &m_events, TX_MESSAGE_SENDING );

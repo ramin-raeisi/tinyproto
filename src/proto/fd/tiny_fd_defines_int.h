@@ -36,8 +36,16 @@
 
 #if TINY_FD_DEBUG
 #define LOG(lvl, fmt, ...) TINY_LOG(lvl, fmt, ##__VA_ARGS__)
+// id - unique id of the protocol instance
+// direction - direction of the log, can be "OUT" or "IN"
+// frame type - 'S', 'I' or 'U'
+// subtype - subtype of the frame, can be "RR", "REJ", "UA", etc.
+// ns - N(S) sequence number, nr - N(R) sequence number
+#define FILE_LOG(id, direction, frame, subtype, ns, nr) \
+                TINY_FILE_LOG(id, "%s, %c, %s, %d, %d\n", direction, frame, subtype, ns, nr)
 #else
 #define LOG(...)
+#define FILE_LOG(...)
 #endif
 
 enum

@@ -198,6 +198,7 @@ extern "C"
     /**
      * Puts next frame for sending.
      *
+     * Deprecated: use hdlc_ll_put_frame() instead.
      * hdlc_ll_put() function will not wait or perform send operation, but only pass data pointer to
      * hdlc state machine. In this case, some other thread needs to
      * or in the same thread you need to send data using hdlc_ll_get_tx_data().
@@ -209,13 +210,39 @@ extern "C"
      *         TINY_ERR_INVALID_DATA if len is zero.
      *         TINY_SUCCESS if data is successfully sent
      * @warning buffer with data must be available all the time until
-     *          data are actually sent to tx hw channel. That is if you use
-     *          zero timeout, you need to use callback to understand, when buffer
-     *          is not longer needed at hdlc level.
+     *          data are actually sent to tx hw channel. That is 
+     *          you need to use callback to understand, when buffer
+     *          is not longer needed at hdlc low level. Or you can use
+     *          hdlc_ll_reset() to reset hdlc tx state and to stop using
+     *          passed buffer.
      * @note TINY_ERR_BUSY and TINY_ERR_INVALID_DATA refer to putting new frame to TX
      *       hdlc queue.
      */
-    int hdlc_ll_put(hdlc_ll_handle_t handle, const void *data, int len);
+    __attribute_deprecated__  int hdlc_ll_put(hdlc_ll_handle_t handle, const void *data, int len);
+
+    /**
+     * Puts next frame for sending.
+     *
+     * hdlc_ll_put_frame() function will not wait or perform send operation, but only pass data pointer to
+     * hdlc state machine. In this case, some other thread needs to
+     * or in the same thread you need to send data using hdlc_ll_run_tx().
+     *
+     * @param handle hdlc handle
+     * @param data pointer to new data to send
+     * @param len size of data to send in bytes
+     * @return TINY_ERR_BUSY if TX queue is busy with another frame.
+     *         TINY_ERR_INVALID_DATA if len is zero.
+     *         TINY_SUCCESS if data is successfully sent
+     * @warning buffer with data must be available all the time until
+     *          data are actually sent to tx hw channel. That is 
+     *          you need to use callback to understand, when buffer
+     *          is not longer needed at hdlc low level. Or you can use
+     *          hdlc_ll_reset() to reset hdlc tx state and to stop using
+     *          passed buffer.
+     * @note TINY_ERR_BUSY and TINY_ERR_INVALID_DATA refer to putting new frame to TX
+     *       hdlc queue.
+     */
+    int hdlc_ll_put_frame(hdlc_ll_handle_t handle, const void *data, int len);
 
     /**
      * Returns minimum buffer size, required to hold hdlc low level data for desired payload size.

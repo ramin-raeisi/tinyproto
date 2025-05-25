@@ -242,7 +242,7 @@ static int hdlc_put(hdlc_handle_t handle, const void *data, int len, uint32_t ti
         LOG(TINY_LOG_WRN, "[HDLC:%p] hdlc_put FAILED\n", handle);
         return TINY_ERR_TIMEOUT;
     }
-    hdlc_ll_put(handle->handle, data, len);
+    hdlc_ll_put_frame(handle->handle, data, len);
     LOG(TINY_LOG_DEB, "[HDLC:%p] hdlc_put SUCCESS\n", handle);
     // Indicate that now we have something to send
     tiny_events_set(&handle->events, TX_DATA_READY_BIT);

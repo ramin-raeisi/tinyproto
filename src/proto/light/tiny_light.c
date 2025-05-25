@@ -114,7 +114,7 @@ int tiny_light_send(STinyLightData *handle, const uint8_t *pbuf, int len)
 {
     uint32_t ts = tiny_millis();
     int result = TINY_SUCCESS;
-    hdlc_ll_put(handle->_hdlc, pbuf, len);
+    hdlc_ll_put_frame(handle->_hdlc, pbuf, len);
     while ( handle->_hdlc->tx.origin_data )
     {
         uint8_t stream[1];
@@ -160,7 +160,7 @@ int tiny_light_read(STinyLightData *handle, uint8_t *pbuf, int len)
     uint32_t ts = tiny_millis();
     int result = TINY_SUCCESS;
     handle->_hdlc->rx_buf = pbuf;
-    handle->_hdlc->rx.frame_buf = pbuf;
+    handle->_hdlc->rx.active_frame_buf = pbuf;
     handle->_hdlc->rx_buf_size = len;
     handle->_hdlc->phys_mtu = len;
     handle->rx_len = 0;

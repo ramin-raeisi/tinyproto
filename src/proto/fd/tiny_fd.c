@@ -183,6 +183,8 @@ static void on_frame_read(void *user_data, uint8_t *data, int len)
             .control = (handle->mode == TINY_FD_MODE_NRM ? HDLC_U_FRAME_TYPE_SNRM : HDLC_U_FRAME_TYPE_SABM) | HDLC_U_FRAME_BITS,
         };
         __put_u_s_frame_to_tx_queue(handle, TINY_FD_QUEUE_U_FRAME, &frame, 2);
+        FILE_LOG((uintptr_t)handle, "OUT", 'U',
+            (handle->mode == TINY_FD_MODE_NRM ? "SNRM" : "SABM"), 0, 0);
         handle->peers[peer].state = TINY_FD_STATE_CONNECTING;
     }
     else if ( (control & HDLC_I_FRAME_MASK) == HDLC_I_FRAME_BITS )
@@ -264,6 +266,7 @@ int tiny_fd_init(tiny_fd_handle_t *handle, tiny_fd_init_t *init)
     if ( (0 == init->on_read_cb) || (0 == init->buffer) || (0 == init->buffer_size) )
     {
         LOG(TINY_LOG_CRIT, "Invalid input data: null pointers%s", "\n");
+        TINY_ABORT();
         return TINY_ERR_INVALID_DATA;
     }
     if ( init->mtu == 0 )
@@ -273,6 +276,7 @@ int tiny_fd_init(tiny_fd_handle_t *handle, tiny_fd_init_t *init)
         if ( init->mtu < 1 )
         {
             LOG(TINY_LOG_CRIT, "Calculated mtu size is zero, no payload transfer is available%s", "\n");
+            TINY_ABORT();
             return TINY_ERR_OUT_OF_MEMORY;
         }
     }
@@ -280,16 +284,19 @@ int tiny_fd_init(tiny_fd_handle_t *handle, tiny_fd_init_t *init)
     {
         LOG(TINY_LOG_CRIT, "Too small buffer for FD protocol %i < %i\n", init->buffer_size,
             tiny_fd_buffer_size_by_mtu_ex(peers_count, init->mtu, init->window_frames, init->crc_type, 1));
+        TINY_ABORT();
         return TINY_ERR_OUT_OF_MEMORY;
     }
     if ( init->window_frames < 2 )
     {
         LOG(TINY_LOG_CRIT, "HDLC doesn't support less than 2-frames queue%s", "\n");
+        TINY_ABORT();
         return TINY_ERR_INVALID_DATA;
     }
     if ( !init->retry_timeout && !init->send_timeout )
     {
         LOG(TINY_LOG_CRIT, "HDLC uses timeouts for ACK, at least retry_timeout, or send_timeout must be specified%s", "\n");
+        TINY_ABORT();
         return TINY_ERR_INVALID_DATA;
     }
     memset(init->buffer, 0, init->buffer_size);
@@ -463,7 +470,7 @@ static uint8_t *tiny_fd_get_next_i_frame(tiny_fd_handle_t handle, int *len, uint
     {
         data = (uint8_t *)&ptr->header;
         *len = ptr->len + sizeof(tiny_frame_header_t);
-        LOG(TINY_LOG_INFO, "[%p] Sending I-Frame N(R)=%02X,N(S)=%02X with address [%02X] to %s\n", handle, handle->peers[peer].next_nr,
+        LOG(TINY_LOG_INFO, "[%p] Sending I-Frame N(R-awaiting)=%02X,N(S-seq sent)=%02X with address [%02X] to %s\n", handle, handle->peers[peer].next_nr,
             handle->peers[peer].next_ns, data[0], __is_primary_station( handle ) ? "secondary" : "primary" );
         ptr->header.control &= 0x0F;
         ptr->header.control |= (handle->peers[peer].next_nr << 5);
@@ -500,6 +507,7 @@ static uint8_t *tiny_fd_get_next_frame_to_send(tiny_fd_handle_t handle, int *len
                 .control = HDLC_U_FRAME_TYPE_SNRM | HDLC_U_FRAME_BITS,
             };
             __put_u_s_frame_to_tx_queue(handle, TINY_FD_QUEUE_S_FRAME, &frame, 2);
+            FILE_LOG((uintptr_t)handle, "OUT", 'U', "SNRM", 0, 0);
         }
         else
         {
@@ -508,6 +516,7 @@ static uint8_t *tiny_fd_get_next_frame_to_send(tiny_fd_handle_t handle, int *len
                 .control = HDLC_S_FRAME_BITS | HDLC_S_FRAME_TYPE_RR | (handle->peers[peer].next_nr << 5),
             };
             __put_u_s_frame_to_tx_queue(handle, TINY_FD_QUEUE_S_FRAME, &frame, 2);
+            FILE_LOG((uintptr_t)handle, "OUT", 'S', "  RR", 0, handle->peers[peer].next_nr);
         }
         data = tiny_fd_get_next_s_u_frame_to_send(handle, len, peer, address);
     }
@@ -564,6 +573,7 @@ static void tiny_fd_connected_check_idle_timeout(tiny_fd_handle_t handle, uint8_
             };
             handle->peers[peer].ka_confirmed = 0;
             __put_u_s_frame_to_tx_queue(handle, TINY_FD_QUEUE_S_FRAME, &frame, 2);
+            FILE_LOG((uintptr_t)handle, "OUT", 'S', "  RR", 0, handle->peers[peer].next_nr);
         }
         handle->peers[peer].last_ka_ts = tiny_millis();
     }
@@ -591,6 +601,8 @@ static void tiny_fd_disconnected_check_idle_timeout(tiny_fd_handle_t handle, uin
                 LOG(TINY_LOG_CRIT, "[%p] Failed to queue SNRM/SABM message for peer %02X [addr:%02X]\n", handle,
                        handle->next_peer, __peer_to_address_field( handle, peer ));
             }
+            FILE_LOG((uintptr_t)handle, "OUT", 'U',
+                (handle->mode == TINY_FD_MODE_NRM ? "SNRM" : "SABM"), 0, 0);
             handle->peers[peer].state = TINY_FD_STATE_CONNECTING;
             handle->peers[peer].last_ka_ts = tiny_millis();
         }
@@ -645,7 +657,7 @@ int tiny_fd_get_tx_data(tiny_fd_handle_t handle, void *data, int len, uint32_t t
                         // Do not use timeout for hdlc_send(), as hdlc level is ready to accept next frame
                         // (FD_EVENT_TX_SENDING is not set). And at this step we do not need hdlc_send() to
                         // send data.
-                        hdlc_ll_put(handle->_hdlc, frame_data, frame_len);
+                        hdlc_ll_put_frame(handle->_hdlc, frame_data, frame_len);
                         continue;
                     }
                     else if ( handle->mode == TINY_FD_MODE_ABM || __is_secondary_station( handle ) )
@@ -717,7 +729,7 @@ int tiny_fd_run_tx(tiny_fd_handle_t handle, write_block_cb_t write_func)
 
 int tiny_fd_send_packet_to(tiny_fd_handle_t handle, uint8_t address, const void *data, int len, uint32_t timeout)
 {
-    int result;
+    int result = TINY_SUCCESS;
     uint8_t peer;
     LOG(TINY_LOG_DEB, "[%p] PUT frame\n", handle);
     if ( __is_secondary_station( handle ) && address == TINY_FD_PRIMARY_ADDR )
@@ -729,6 +741,7 @@ int tiny_fd_send_packet_to(tiny_fd_handle_t handle, uint8_t address, const void 
     if ( peer == 0xFF )
     {
         LOG(TINY_LOG_ERR, "[%p] PUT frame error: Unknown peer\n", handle);
+        TINY_ABORT();
         return TINY_ERR_UNKNOWN_PEER;
     }
     // Check frame size againts mtu
@@ -737,6 +750,7 @@ int tiny_fd_send_packet_to(tiny_fd_handle_t handle, uint8_t address, const void 
     if ( len > tiny_fd_queue_get_mtu( &handle->frames.i_queue ) )
     {
         LOG(TINY_LOG_ERR, "[%p] PUT frame error: data len %i is greater MTU %i\n", handle, len, handle->frames.i_queue.mtu);
+        TINY_ABORT();
         result = TINY_ERR_DATA_TOO_LARGE;
     }
     // Wait until there is room for new frame
@@ -758,7 +772,7 @@ int tiny_fd_send_packet_to(tiny_fd_handle_t handle, uint8_t address, const void 
                 }
                 else
                 {
-                    LOG(TINY_LOG_ERR, "[%p] I_QUEUE is full N(S)queue=%d, N(S)confirm=%d, N(S)next=%d\n", handle,
+                    LOG(TINY_LOG_WRN, "[%p] I_QUEUE is full N(S-free)queue=%d, N(S-awaiting confirm)confirm=%d, N(S-to send)next=%d\n", handle,
                         handle->peers[peer].last_ns, handle->peers[peer].confirm_ns, handle->peers[peer].next_ns);
                 }
                 result = TINY_SUCCESS;
@@ -768,6 +782,7 @@ int tiny_fd_send_packet_to(tiny_fd_handle_t handle, uint8_t address, const void 
                 result = TINY_ERR_TIMEOUT;
                 // !!!! If this log appears, then in the code of the protocol something is definitely wrong !!!!
                 LOG(TINY_LOG_ERR, "[%p] Wrong flag FD_EVENT_QUEUE_HAS_FREE_SLOTS\n", handle);
+                TINY_ABORT();
             }
             if ( __can_accept_i_frames( handle, peer ) )
             {
@@ -786,7 +801,8 @@ int tiny_fd_send_packet_to(tiny_fd_handle_t handle, uint8_t address, const void 
     }
     else
     {
-        LOG(TINY_LOG_WRN, "[%p] PUT frame timeout\n", handle);
+        LOG(TINY_LOG_ERR, "[%p] PUT frame timeout\n", handle);
+        TINY_ABORT();
         result = TINY_ERR_TIMEOUT;
     }
     return result;
@@ -906,6 +922,7 @@ int tiny_fd_disconnect(tiny_fd_handle_t handle)
     }
     else
     {
+        FILE_LOG((uintptr_t)handle, "OUT", 'U', "DISC", 0, 0);
         handle->peers[peer].state = TINY_FD_STATE_DISCONNECTING;
     }
     tiny_mutex_unlock(&handle->frames.mutex);

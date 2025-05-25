@@ -168,7 +168,7 @@ static int runLoopBackMode( tinyproto::Proto &proto )
             s_receivedBytes += static_cast<int>(packet->size());
             // Add 10 milliseconds timeout to give for Light/Hdlc protocols some time
             // to wait until message is sent
-            if ( !proto.send( *packet, 10 ) )
+            if ( !proto.send( *packet, 100 ) )
             {
                 fprintf(stderr, "Failed to loopback packet\n");
             }
@@ -206,7 +206,7 @@ static int runGeneratorMode(tinyproto::Proto &proto)
             outPacket.put("Generated frame. test in progress...");
         // Use timeout of 20 milliseconds, since we don't want busy loop
         // Since we're using single thread for sending and receiving it is normal that we miss some incoming frames
-        if ( !proto.send(outPacket, 20) )
+        if ( !proto.send(outPacket, 100) )
         {
             fprintf(stderr, "Failed to send packet\n");
         }

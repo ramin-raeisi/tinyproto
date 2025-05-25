@@ -21,6 +21,14 @@ CPPFLAGS += -Os -Wall -Werror -ffunction-sections -fdata-sections $(EXTRA_CPPFLA
 # CPPFLAGS += -pg
 CXXFLAGS += -std=c++17
 
+ifeq ($(ENABLE_FILE_LOGS),y)
+    CPPFLAGS += -DTINY_FILE_LOGGING
+endif
+
+ifeq ($(ABORT_ON_ERROR),y)
+    CPPFLAGS += -DTINY_ABORT_ON_ERROR
+endif
+
 ifneq ($(LOG_LEVEL),)
     CPPFLAGS += -DTINY_LOG_LEVEL_DEFAULT=$(LOG_LEVEL)
 endif
@@ -73,6 +81,7 @@ OBJ_LIB += \
         src/proto/fd/tiny_fd.o \
         src/proto/fd/tiny_fd_frames.o \
         src/hal/tiny_list.o \
+        src/hal/tiny_debug.o \
         src/hal/tiny_types.o \
         src/hal/tiny_types_cpp.o \
         src/hal/tiny_serial.o \
