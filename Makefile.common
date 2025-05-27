@@ -16,7 +16,14 @@ VERSION=1.0.0
 CPPFLAGS += -I./src
 
 CFLAGS += -std=gnu99
-CPPFLAGS += -Os -Wall -Werror -ffunction-sections -fdata-sections $(EXTRA_CPPFLAGS)
+CPPFLAGS += -Wall -Werror -ffunction-sections -fdata-sections $(EXTRA_CPPFLAGS)
+ifeq ($(DEBUG_MODE),y)
+    CFLAGS += -O0
+    CPPFLAGS += -O0
+else
+    CFLAGS += -Os
+    CPPFLAGS += -Os
+endif
 # Uncomment for performance profiling
 # CPPFLAGS += -pg
 CXXFLAGS += -std=c++17

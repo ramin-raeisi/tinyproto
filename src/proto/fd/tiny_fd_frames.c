@@ -35,10 +35,12 @@
 #define TINY_FD_DEBUG 0
 #endif
 
+#ifndef LOG
 #if TINY_FD_DEBUG
 #define LOG(lvl, fmt, ...) TINY_LOG(lvl, fmt, __VA_ARGS__)
 #else
 #define LOG(...)
+#endif
 #endif
 
 int tiny_fd_queue_init(tiny_fd_queue_t *queue, uint8_t *buffer,

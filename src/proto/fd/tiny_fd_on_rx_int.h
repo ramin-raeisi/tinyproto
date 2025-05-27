@@ -115,7 +115,7 @@ static int __check_received_frame(tiny_fd_handle_t handle, uint8_t peer, uint8_t
         // The frame we received is not the one we expected.
         // We need to inform remote side about this by sending REJ frame.
         // We want to see next_nr frame
-        LOG(TINY_LOG_ERR, "[%p] Out of order I-Frame N(s)=%d\n", handle, ns);
+        LOG(TINY_LOG_WRN, "[%p] Out of order I-Frame N(s)=%d\n", handle, ns);
         if ( !handle->peers[peer].sent_reject )
         {
             tiny_frame_header_t frame = {
@@ -124,7 +124,6 @@ static int __check_received_frame(tiny_fd_handle_t handle, uint8_t peer, uint8_t
             };
             handle->peers[peer].sent_reject = 1;
             __put_u_s_frame_to_tx_queue(handle, TINY_FD_QUEUE_S_FRAME, &frame, sizeof(tiny_frame_header_t));
-            FILE_LOG((uintptr_t)handle, "OUT", 'S', " REJ", 0, handle->peers[peer].next_nr);
         }
         result = TINY_ERR_FAILED;
     }
@@ -150,7 +149,6 @@ static void __resend_all_unconfirmed_frames(tiny_fd_handle_t handle, uint8_t pee
             };
             // Send 2-byte header + 2 extra bytes
             __put_u_s_frame_to_tx_queue(handle, TINY_FD_QUEUE_U_FRAME, &frame, 4);
-            FILE_LOG((uintptr_t)handle, "OUT", 'U', "FRMR", handle->peers[peer].next_ns, handle->peers[peer].next_nr);
             break;
         }
         handle->peers[peer].next_ns = (handle->peers[peer].next_ns - 1) & seq_bits_mask;
@@ -192,7 +190,6 @@ static int __on_i_frame_read(tiny_fd_handle_t handle, uint8_t peer, void *data, 
                 .control = HDLC_S_FRAME_BITS | HDLC_S_FRAME_TYPE_RR | (handle->peers[peer].next_nr << 5),
             };
             __put_u_s_frame_to_tx_queue(handle, TINY_FD_QUEUE_S_FRAME, &frame, 2);
-            FILE_LOG((uintptr_t)handle, "OUT", 'S', "  RR", 0, handle->peers[peer].next_nr);
         }
     }
     return result;
@@ -230,7 +227,6 @@ static int __on_s_frame_read(tiny_fd_handle_t handle, uint8_t peer, void *data, 
                     .control = HDLC_S_FRAME_BITS | HDLC_S_FRAME_TYPE_RR | (handle->peers[peer].next_nr << 5),
                 };
                 __put_u_s_frame_to_tx_queue(handle, TINY_FD_QUEUE_S_FRAME, &frame, 2);
-                FILE_LOG((uintptr_t)handle, "OUT", 'S', "  RR", 0, handle->peers[peer].next_nr);
             }
         }
     }
@@ -256,7 +252,6 @@ static int __on_u_frame_read(tiny_fd_handle_t handle, uint8_t peer, void *data, 
             .control = HDLC_U_FRAME_TYPE_UA | HDLC_U_FRAME_BITS,
         };
         __put_u_s_frame_to_tx_queue(handle, TINY_FD_QUEUE_U_FRAME, &frame, 2);
-        FILE_LOG((uintptr_t)handle, "OUT", 'U', "  UA", 0, 0);
         if ( handle->peers[peer].state != TINY_FD_STATE_DISCONNECTED && handle->peers[peer].state != TINY_FD_STATE_CONNECTING )
         {
             __switch_to_disconnected_state(handle, peer);
@@ -271,7 +266,6 @@ static int __on_u_frame_read(tiny_fd_handle_t handle, uint8_t peer, void *data, 
             .control = HDLC_U_FRAME_TYPE_UA | HDLC_U_FRAME_BITS,
         };
         __put_u_s_frame_to_tx_queue(handle, TINY_FD_QUEUE_U_FRAME, &frame, 2);
-        FILE_LOG((uintptr_t)handle, "OUT", 'U', "  UA", 0, 0);
         __switch_to_disconnected_state(handle, peer);
     }
     else if ( type == HDLC_U_FRAME_TYPE_RSET )

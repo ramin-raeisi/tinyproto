@@ -66,6 +66,77 @@ static uint8_t __switch_to_next_peer(tiny_fd_handle_t handle)
 
 ///////////////////////////////////////////////////////////////////////////////
 
+static char __get_frame_type(uint8_t control)
+{
+    if ((control & HDLC_I_FRAME_MASK) == HDLC_I_FRAME_BITS)
+    {
+        return 'I';
+    }
+    else if ((control & HDLC_S_FRAME_MASK) == HDLC_S_FRAME_BITS)
+    {
+        return 'S';
+    }
+    return 'U';
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+static const char *__get_frame_type_str(uint8_t control)
+{
+    char type = __get_frame_type(control);
+    if (type == 'I') {
+        return "    ";
+    }
+    else if (type == 'S') {
+        switch (control & HDLC_S_FRAME_TYPE_MASK)
+        {
+            case HDLC_S_FRAME_TYPE_RR:  return "  RR";
+            case HDLC_S_FRAME_TYPE_REJ: return " REJ";
+            default:                    return " UNK";
+        }
+    }
+    switch (control & HDLC_U_FRAME_TYPE_MASK)
+    {
+        case HDLC_U_FRAME_TYPE_UA:   return "  UA";
+        case HDLC_U_FRAME_TYPE_FRMR: return "FRMR";
+        case HDLC_U_FRAME_TYPE_RSET: return "RSET";
+        case HDLC_U_FRAME_TYPE_SABM: return "SABM";
+        case HDLC_U_FRAME_TYPE_SNRM: return "SNRM";
+        case HDLC_U_FRAME_TYPE_DISC: return "DISC";
+        default:                     return " UNK";
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+static uint8_t __get_frame_sequence(uint8_t control)
+{
+    char type = __get_frame_type(control);
+    switch (type)
+    {
+        case 'I': return (control >> 1) & 0x07;
+        case 'S':
+        case 'U':
+        default: return 0;
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+static uint8_t __get_awaiting_sequence(uint8_t control)
+{
+    char type = __get_frame_type(control);
+    switch (type)
+    {
+        case 'I': return control >> 5;
+        case 'S': return control >> 5;
+        case 'U':
+        default: return 0;
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
 #if 0
 static inline uint8_t __number_of_awaiting_tx_i_frames(tiny_fd_handle_t handle, uint8_t peer)
 {
@@ -109,7 +180,7 @@ static void __switch_to_connected_state(tiny_fd_handle_t handle, uint8_t peer)
             &handle->events,
             FD_EVENT_TX_DATA_AVAILABLE |
                 (tiny_fd_queue_has_free_slots(&handle->frames.i_queue) ? FD_EVENT_QUEUE_HAS_FREE_SLOTS : 0));
-        LOG(TINY_LOG_CRIT, "[%p] Connection is established\n", handle);
+        LOG(TINY_LOG_WRN, "[%p] Connection is established\n", handle);
         if ( handle->on_connect_event_cb )
         {
             tiny_mutex_unlock(&handle->frames.mutex);
@@ -183,8 +254,6 @@ static void on_frame_read(void *user_data, uint8_t *data, int len)
             .control = (handle->mode == TINY_FD_MODE_NRM ? HDLC_U_FRAME_TYPE_SNRM : HDLC_U_FRAME_TYPE_SABM) | HDLC_U_FRAME_BITS,
         };
         __put_u_s_frame_to_tx_queue(handle, TINY_FD_QUEUE_U_FRAME, &frame, 2);
-        FILE_LOG((uintptr_t)handle, "OUT", 'U',
-            (handle->mode == TINY_FD_MODE_NRM ? "SNRM" : "SABM"), 0, 0);
         handle->peers[peer].state = TINY_FD_STATE_CONNECTING;
     }
     else if ( (control & HDLC_I_FRAME_MASK) == HDLC_I_FRAME_BITS )
@@ -502,7 +571,6 @@ static uint8_t *tiny_fd_get_next_frame_to_send(tiny_fd_handle_t handle, int *len
                 .control = HDLC_U_FRAME_TYPE_SNRM | HDLC_U_FRAME_BITS,
             };
             __put_u_s_frame_to_tx_queue(handle, TINY_FD_QUEUE_S_FRAME, &frame, 2);
-            FILE_LOG((uintptr_t)handle, "OUT", 'U', "SNRM", 0, 0);
         }
         else
         {
@@ -511,7 +579,6 @@ static uint8_t *tiny_fd_get_next_frame_to_send(tiny_fd_handle_t handle, int *len
                 .control = HDLC_S_FRAME_BITS | HDLC_S_FRAME_TYPE_RR | (handle->peers[peer].next_nr << 5),
             };
             __put_u_s_frame_to_tx_queue(handle, TINY_FD_QUEUE_S_FRAME, &frame, 2);
-            FILE_LOG((uintptr_t)handle, "OUT", 'S', "  RR", 0, handle->peers[peer].next_nr);
         }
         data = tiny_fd_get_next_s_u_frame_to_send(handle, len, peer, address);
     }
@@ -521,6 +588,9 @@ static uint8_t *tiny_fd_get_next_frame_to_send(tiny_fd_handle_t handle, int *len
         header->control |= HDLC_P_BIT;
         handle->last_marker_ts = tiny_millis();
         handle->peers[peer].last_ka_ts = tiny_millis();
+        FILE_LOG((uintptr_t)handle, "OUT", __get_frame_type(header->control),
+                 __get_frame_type_str(header->control),
+                 __get_frame_sequence(header->control), __get_awaiting_sequence(header->control));
     }
     tiny_mutex_unlock(&handle->frames.mutex);
     return data;
@@ -548,7 +618,7 @@ static void tiny_fd_connected_check_idle_timeout(tiny_fd_handle_t handle, uint8_
         }
         else
         {
-            LOG(TINY_LOG_CRIT, "[%p] Remote side not responding, flushing I-frames\n", handle);
+            LOG(TINY_LOG_ERR, "[%p] Remote side not responding, flushing I-frames\n", handle);
             __switch_to_disconnected_state(handle, peer);
         }
     }
@@ -556,7 +626,7 @@ static void tiny_fd_connected_check_idle_timeout(tiny_fd_handle_t handle, uint8_
     {
         if ( !handle->peers[peer].ka_confirmed )
         {
-            LOG(TINY_LOG_CRIT, "[%p] No keep alive after timeout\n", handle);
+            LOG(TINY_LOG_ERR, "[%p] No keep alive after timeout\n", handle);
             __switch_to_disconnected_state(handle, peer);
         }
         else
@@ -568,7 +638,6 @@ static void tiny_fd_connected_check_idle_timeout(tiny_fd_handle_t handle, uint8_
             };
             handle->peers[peer].ka_confirmed = 0;
             __put_u_s_frame_to_tx_queue(handle, TINY_FD_QUEUE_S_FRAME, &frame, 2);
-            FILE_LOG((uintptr_t)handle, "OUT", 'S', "  RR", 0, handle->peers[peer].next_nr);
         }
         handle->peers[peer].last_ka_ts = tiny_millis();
     }
@@ -584,7 +653,7 @@ static void tiny_fd_disconnected_check_idle_timeout(tiny_fd_handle_t handle, uin
     {
         if ( __is_primary_station( handle ) ) // Only primary station can request connection
         {
-            LOG(TINY_LOG_ERR, "[%p] Connection is not established, connecting to peer %02X [addr:%02X]\n", handle,
+            LOG(TINY_LOG_WRN, "[%p] Connection is not established, connecting to peer %02X [addr:%02X]\n", handle,
                    handle->next_peer, __peer_to_address_field( handle, peer ));
             // Try to establish Connection
             tiny_frame_header_t frame = {
@@ -596,8 +665,6 @@ static void tiny_fd_disconnected_check_idle_timeout(tiny_fd_handle_t handle, uin
                 LOG(TINY_LOG_CRIT, "[%p] Failed to queue SNRM/SABM message for peer %02X [addr:%02X]\n", handle,
                        handle->next_peer, __peer_to_address_field( handle, peer ));
             }
-            FILE_LOG((uintptr_t)handle, "OUT", 'U',
-                (handle->mode == TINY_FD_MODE_NRM ? "SNRM" : "SABM"), 0, 0);
             handle->peers[peer].state = TINY_FD_STATE_CONNECTING;
             handle->peers[peer].last_ka_ts = tiny_millis();
         }
@@ -913,7 +980,6 @@ int tiny_fd_disconnect(tiny_fd_handle_t handle)
     }
     else
     {
-        FILE_LOG((uintptr_t)handle, "OUT", 'U', "DISC", 0, 0);
         handle->peers[peer].state = TINY_FD_STATE_DISCONNECTING;
     }
     tiny_mutex_unlock(&handle->frames.mutex);

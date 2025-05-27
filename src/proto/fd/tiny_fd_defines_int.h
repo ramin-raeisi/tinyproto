@@ -42,7 +42,7 @@
 // subtype - subtype of the frame, can be "RR", "REJ", "UA", etc.
 // ns - N(S) sequence number, nr - N(R) sequence number
 #define FILE_LOG(id, direction, frame, subtype, ns, nr) \
-                TINY_FILE_LOG(id, "%s, %c, %s, %d, %d\n", direction, frame, subtype, ns, nr)
+                TINY_FILE_LOG(id, "%s,  %c, %s,    %d,   %d\n", direction, frame, subtype, ns, nr)
 #else
 #define LOG(...)
 #define FILE_LOG(...)

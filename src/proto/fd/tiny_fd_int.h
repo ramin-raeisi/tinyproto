@@ -63,6 +63,7 @@ extern "C"
 
     typedef enum
     {
+        TINY_FD_STATE_IDLE = 0,
         TINY_FD_STATE_DISCONNECTED,
         TINY_FD_STATE_CONNECTING,
         TINY_FD_STATE_CONNECTED,
@@ -107,7 +108,7 @@ extern "C"
         /// Global mutex
         tiny_mutex_t mutex;
 
-    } tiny_frames_info_t;
+    } tiny_frames_queue_t;
 
     typedef struct tiny_fd_data_t
     {
@@ -128,7 +129,7 @@ extern "C"
         /// Number of retries to perform before timeout takes place
         uint8_t retries;
         /// Information for frames being processed
-        tiny_frames_info_t frames;
+        tiny_frames_queue_t frames;
         /// Peers count supported by the primary device
         uint8_t peers_count;
         /// Information on all peers stations

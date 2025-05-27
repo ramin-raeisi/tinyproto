@@ -1,4 +1,16 @@
 ARCH ?= linux
+DEBUG_MODE ?= n
+
+ifeq ($(DEBUG_MODE),y)
+	CPPFLAGS += -g -O0 -pg
+	CFLAGS += -g -O0
+	ENABLE_FD_LOGS ?= y
+	LOG_LEVEL ?= 2
+	ENABLE_FILE_LOGS ?= y
+else
+	CPPFLAGS += -DNDEBUG -Os
+	CFLAGS += -DNDEBUG -Os
+endif
 
 include Makefile.$(ARCH)
 
