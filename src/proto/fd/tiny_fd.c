@@ -64,6 +64,7 @@ static uint8_t __switch_to_next_peer(tiny_fd_handle_t handle)
     return start_peer != handle->next_peer;
 }
 
+#if defined(TINY_FD_DEBUG) && defined(TINY_FILE_LOGGING)
 ///////////////////////////////////////////////////////////////////////////////
 
 static char __get_frame_type(uint8_t control)
@@ -134,6 +135,7 @@ static uint8_t __get_awaiting_sequence(uint8_t control)
         default: return 0;
     }
 }
+#endif // TINY_FD_DEBUG && TINY_FILE_LOGGING
 
 ///////////////////////////////////////////////////////////////////////////////
 

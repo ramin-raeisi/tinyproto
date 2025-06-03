@@ -52,7 +52,7 @@ jobs:
         with:
           name: csv-test-results
           path: |
-            !*.csv
+            *.csv
       - name: Upload coverage statistics
         uses: coverallsapp/github-action@master
         with:
