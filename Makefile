@@ -7,6 +7,8 @@ ifeq ($(DEBUG_MODE),y)
 	ENABLE_FD_LOGS ?= y
 	LOG_LEVEL ?= 2
 	ENABLE_FILE_LOGS ?= y
+        ENABLE_LOGS ?= y
+        ENABLE_HDLC_LOGS ?= n
 else
 	CPPFLAGS += -DNDEBUG -Os
 	CFLAGS += -DNDEBUG -Os

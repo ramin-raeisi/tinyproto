@@ -230,6 +230,8 @@ static void on_frame_read(void *user_data, uint8_t *data, int len)
         LOG(TINY_LOG_WRN, "%s: received too small frame\n", "FD");
         return;
     }
+    FILE_LOG((uintptr_t)handle, " IN", __get_frame_type(data[1]), __get_frame_type_str(data[1]),
+            __get_frame_sequence(data[1]), __get_awaiting_sequence(data[1]));
     uint8_t peer = __address_field_to_peer( handle, ((uint8_t *)data)[0] );
     if ( peer == 0xFF )
     {

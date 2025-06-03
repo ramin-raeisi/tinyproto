@@ -39,13 +39,19 @@ jobs:
         run: |
           make docs 1> /dev/null
           
-      #
+      # Runs a test and publishes csv artifacts as a result
       - name: Building via gcc and running unit tests
         run: |
-          make
+          make DEBUG_MODE=y ABORT_ON_ERROR=y
           ./.travis/run_tests.sh
           make clean
           make ARCH=linux EXTRA_CPPFLAGS="--coverage" coverage
+      - name: Upload CSV test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: csv-test-results
+          path: *.csv
           
       - name: Upload coverage statistics
         uses: coverallsapp/github-action@master

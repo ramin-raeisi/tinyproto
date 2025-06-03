@@ -165,7 +165,6 @@ static int __on_i_frame_read(tiny_fd_handle_t handle, uint8_t peer, void *data, 
     uint8_t nr = control >> 5;
     uint8_t ns = (control >> 1) & 0x07;
     LOG(TINY_LOG_INFO, "[%p] Receiving I-Frame N(R-sender awaits)=%02X,N(S-seq received)=%02X with address [%02X]\n", handle, nr, ns, ((uint8_t *)data)[0]);
-    FILE_LOG((uintptr_t)handle, " IN", 'I', "    ", ns, nr);
     int result = __check_received_frame(handle, peer, ns);
     // Confirm all previously sent frames up to received N(R)
     __confirm_sent_frames(handle, peer, nr);
@@ -207,14 +206,12 @@ static int __on_s_frame_read(tiny_fd_handle_t handle, uint8_t peer, void *data, 
         ((control >> 2) & 0x03) == 0x00 ? "RR" : "REJ", ((uint8_t *)data)[0]);
     if ( (control & HDLC_S_FRAME_TYPE_MASK) == HDLC_S_FRAME_TYPE_REJ )
     {
-        FILE_LOG((uintptr_t)handle, " IN", 'S', " REJ", 0, nr);
         // Confirm all previously sent frames up to received N(R)
         __confirm_sent_frames(handle, peer, nr);
         __resend_all_unconfirmed_frames(handle, peer, control, nr);
     }
     else if ( (control & HDLC_S_FRAME_TYPE_MASK) == HDLC_S_FRAME_TYPE_RR )
     {
-        FILE_LOG((uintptr_t)handle, " IN", 'S', "  RR", 0, nr);
         // Confirm all previously sent frames up to received N(R)
         __confirm_sent_frames(handle, peer, nr);
         if ( address & HDLC_CR_BIT )
@@ -230,9 +227,6 @@ static int __on_s_frame_read(tiny_fd_handle_t handle, uint8_t peer, void *data, 
             }
         }
     }
-    else {
-        FILE_LOG((uintptr_t)handle, " IN", 'S', "    ", 0, nr);
-    }
     return result;
 }
 
@@ -246,7 +240,6 @@ static int __on_u_frame_read(tiny_fd_handle_t handle, uint8_t peer, void *data, 
     LOG(TINY_LOG_INFO, "[%p] Receiving U-Frame type=%02X with address [%02X]\n", handle, type, ((uint8_t *)data)[0]);
     if ( type == HDLC_U_FRAME_TYPE_SABM || type == HDLC_U_FRAME_TYPE_SNRM )
     {
-        FILE_LOG((uintptr_t)handle, " IN", 'U', type == HDLC_U_FRAME_TYPE_SABM ? "SABM" : "SNRM", 0, 0);
         tiny_frame_header_t frame = {
             .address = __peer_to_address_field( handle, peer ),
             .control = HDLC_U_FRAME_TYPE_UA | HDLC_U_FRAME_BITS,
@@ -260,7 +253,6 @@ static int __on_u_frame_read(tiny_fd_handle_t handle, uint8_t peer, void *data, 
     }
     else if ( type == HDLC_U_FRAME_TYPE_DISC )
     {
-        FILE_LOG((uintptr_t)handle, " IN", 'U', "DISC", 0, 0);
         tiny_frame_header_t frame = {
             .address = __peer_to_address_field( handle, peer ),
             .control = HDLC_U_FRAME_TYPE_UA | HDLC_U_FRAME_BITS,
@@ -270,19 +262,16 @@ static int __on_u_frame_read(tiny_fd_handle_t handle, uint8_t peer, void *data, 
     }
     else if ( type == HDLC_U_FRAME_TYPE_RSET )
     {
-        FILE_LOG((uintptr_t)handle, " IN", 'U', "RSET", 0, 0);
         // resets N(R) = 0 in secondary, resets N(S) = 0 in primary
         // expected answer UA
     }
     else if ( type == HDLC_U_FRAME_TYPE_FRMR )
     {
-        FILE_LOG((uintptr_t)handle, " IN", 'U', "FRMR", 0, 0);
         // response of secondary in case of protocol errors: invalid control field, invalid N(R),
         // information field too long or not expected in this frame
     }
     else if ( type == HDLC_U_FRAME_TYPE_UA )
     {
-        FILE_LOG((uintptr_t)handle, " IN", 'U', "  UA", 0, 0);
         if ( handle->peers[peer].state == TINY_FD_STATE_CONNECTING )
         {
             // confirmation received
@@ -296,7 +285,6 @@ static int __on_u_frame_read(tiny_fd_handle_t handle, uint8_t peer, void *data, 
     else
     {
         LOG(TINY_LOG_WRN, "[%p] Unknown hdlc U-frame received\n", handle);
-        FILE_LOG((uintptr_t)handle, " IN", 'U', "    ", 0, 0);
     }
     return result;
 }

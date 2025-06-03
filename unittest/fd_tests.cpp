@@ -35,15 +35,20 @@
 #include "helpers/tiny_fd_helper.h"
 #include "helpers/fake_connection.h"
 
-TEST_GROUP(FD){void setup(){
-    // ...
-    //        fprintf(stderr, "======== START =======\n" );
-}
+TEST_GROUP(FD)
+{
+    void setup()
+    {
+        // ...
+        //        fprintf(stderr, "======== START =======\n" );
+    }
 
-               void teardown(){
+    void teardown()
+    {
                    // ...
                    //        fprintf(stderr, "======== END =======\n" );
-               }};
+    }
+};
 
 TEST(FD, multithread_basic_test)
 {
