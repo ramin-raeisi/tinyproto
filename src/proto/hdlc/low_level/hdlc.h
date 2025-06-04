@@ -218,7 +218,7 @@ extern "C"
      * @note TINY_ERR_BUSY and TINY_ERR_INVALID_DATA refer to putting new frame to TX
      *       hdlc queue.
      */
-    __attribute_deprecated__  int hdlc_ll_put(hdlc_ll_handle_t handle, const void *data, int len);
+    int hdlc_ll_put(hdlc_ll_handle_t handle, const void *data, int len) __attribute__((deprecated));
 
     /**
      * Puts next frame for sending.
