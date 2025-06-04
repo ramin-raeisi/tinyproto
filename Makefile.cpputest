@@ -42,7 +42,7 @@ coverage:
 	    --gcov-options '\-lp' --dryrun
 	lcov --base-directory . --directory ./src -c -o lcov.info --rc geninfo_unexecuted_blocks=1 \
 	     --ignore-errors gcov
-	lcov --remove lcov.info "*unittest*" -o lcov.info # remove output for external libraries
+	# lcov --remove lcov.info "*unittest*" -o lcov.info # remove output for external libraries
 	lcov --remove lcov.info "/usr/include*" -o lcov.info # remove output for external libraries
 	# --ignore-errors mismatch,negative
 	# -rm -rf test_coverage
