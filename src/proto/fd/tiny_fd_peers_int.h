@@ -62,7 +62,7 @@ static uint8_t __address_field_to_peer(tiny_fd_handle_t handle, uint8_t address)
     // Exit, if extension bit is not set.
     if ( !(address & HDLC_E_BIT) )
     {
-        // We do not support this format for now.
+        // We do not support extended address format for now.
         return 0xFF;
     }
     // If our station is SECONDARY station, then we must check that the frame is for us

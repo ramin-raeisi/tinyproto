@@ -156,7 +156,9 @@ extern "C"
         /**
          * Local station address. The field has meaning only for secondary stations.
          * For primary stations please, leave this field as 0.
-         * Not all addresses can be used for secondary stations. The allowable range is 1 - 62.
+         * For secondary stations the allowable range is 1 - 62.
+         * All 0-address is used only for testing purposes and is not allowed.
+         * All 1-address is used as broadcast address and tinyproto will filter out it.
          */
         uint8_t addr;
 

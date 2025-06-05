@@ -62,7 +62,7 @@ enum
 
 #define HDLC_S_FRAME_BITS 0x01
 #define HDLC_S_FRAME_MASK 0x03
-#define HDLC_S_FRAME_TYPE_REJ 0x04
+#define HDLC_S_FRAME_TYPE_REJ 0x08
 #define HDLC_S_FRAME_TYPE_RR 0x00
 #define HDLC_S_FRAME_TYPE_MASK 0x0C
 
@@ -80,7 +80,13 @@ enum
 #define HDLC_P_BIT 0x10
 #define HDLC_F_BIT 0x10
 
+// C/R bit is command / response bit 
+// When this bit is set, it means that the frame is a command frame
+// When this bit is clear, it means that the frame is a response frame
 #define HDLC_CR_BIT 0x02
+// Extension bit is used to indicate that the address field is extended
+// If this bit is set, the address field is 1 byte long
+// If this bit is clear, the address field is 2 bytes long
 #define HDLC_E_BIT 0x01
 #define HDLC_PRIMARY_ADDR (TINY_FD_PRIMARY_ADDR << 2)
 

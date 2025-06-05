@@ -84,20 +84,109 @@ TEST_GROUP(TINY_FD)
     bool connected = false;
     std::array<uint8_t, 1024> inBuffer{};
     std::array<uint8_t, 1024> outBuffer{};
+
+    void establishConnection()
+    {
+        // For command requests CR bit must be set, that is why address is 0x03
+        auto read_result = tiny_fd_on_rx_data(handle, (uint8_t *)"\x7E\x03\x2F\x7E", 4); // SABM frame
+        CHECK_EQUAL(TINY_SUCCESS, read_result);
+        auto len = tiny_fd_get_tx_data(handle, outBuffer.data(), outBuffer.size(), 100);
+        CHECK(connected); // Connection should be established
+        CHECK_EQUAL(4, len);
+    }
 };
 
 
-TEST(TINY_FD, ConnectionTestSabm)
+TEST(TINY_FD, ABM_ConnectDisconnectResponse)
 {
-    auto read_result = tiny_fd_on_rx_data(handle, (uint8_t *)"\x7E\x03\x2F\x7E", 7); // SABM frame
+    // For command requests CR bit must be set, that is why address is 0x03
+    auto read_result = tiny_fd_on_rx_data(handle, (uint8_t *)"\x7E\x03\x2F\x7E", 4); // SABM frame
     CHECK_EQUAL(TINY_SUCCESS, read_result); // Should read 7 bytes
     int len = tiny_fd_get_tx_data(handle, outBuffer.data(), outBuffer.size(), 100);
     CHECK_EQUAL(4, len);
     // Check UA frame
     // UA frame should be: 0x7E 0x03 0x00 0x7E
     CHECK_EQUAL(0x7E, outBuffer[0]); // Flag
-    CHECK_EQUAL(0x01, outBuffer[1]); // SABM control field
-    CHECK_EQUAL(0x73, outBuffer[2]); // Address field
+    CHECK_EQUAL(0x01, outBuffer[1]); // Address field
+    CHECK_EQUAL(0x73, outBuffer[2]); // UA packet
     CHECK_EQUAL(0x7E, outBuffer[3]); // Flag
     CHECK(connected); // Connection should be established
+    read_result = tiny_fd_on_rx_data(handle, (uint8_t *)"\x7E\x03\x43\x7E", 4); // DISC frame
+    CHECK_EQUAL(TINY_SUCCESS, read_result); // Should read 7 bytes
+    len = tiny_fd_get_tx_data(handle, outBuffer.data(), outBuffer.size(), 100);
+    CHECK_EQUAL(4, len);
+    // Check UA frame
+    // UA frame should be: 0x7E 0x03 0x00 0x7E
+    CHECK_EQUAL(0x7E, outBuffer[0]); // Flag
+    CHECK_EQUAL(0x01, outBuffer[1]); // Address field - CR bit must be cleared
+    CHECK_EQUAL(0x73, outBuffer[2]); // UA packet
+    CHECK_EQUAL(0x7E, outBuffer[3]); // Flag
+    CHECK(!connected); // Connection should be disconnected 
+}
+
+TEST(TINY_FD, ABM_ConnecionTestRequest)
+{
+    // TODO 
+}
+
+TEST(TINY_FD, ABM_DisconnectResponseWhenNotConnected)
+{
+    connected = true; // this flag should not be changed if not connected
+    auto read_result = tiny_fd_on_rx_data(handle, (uint8_t *)"\x7E\x03\x43\x7E", 4); // DISC frame
+    CHECK_EQUAL(TINY_SUCCESS, read_result); // Should read 7 bytes
+    int len = tiny_fd_get_tx_data(handle, outBuffer.data(), outBuffer.size(), 100);
+    CHECK_EQUAL(4, len);
+    // Check UA frame   
+    // UA frame should be: 0x7E 0x03 0x00 0x7E
+    CHECK_EQUAL(0x7E, outBuffer[0]); // Flag
+    CHECK_EQUAL(0x01, outBuffer[1]); // address field - CR bit must be cleared
+    CHECK_EQUAL(0x73, outBuffer[2]); // UA packet
+    CHECK_EQUAL(0x7E, outBuffer[3]); // Flag
+    CHECK(connected); // Connection should not be changed
+}
+
+TEST(TINY_FD, ABM_RecieveTwoConsequentIFrames)
+{
+    establishConnection();
+    // Now we can send I-frames
+    auto read_result = tiny_fd_on_rx_data(handle, (uint8_t *)"\x7E\x03\x00\x11\x7E", 5); // I-frame with data
+    CHECK_EQUAL(TINY_SUCCESS, read_result);
+    read_result = tiny_fd_on_rx_data(handle, (uint8_t *)"\x7E\x03\x02\x22\x7E", 5); // I-frame with data
+    CHECK_EQUAL(TINY_SUCCESS, read_result);
+    auto len = tiny_fd_get_tx_data(handle, outBuffer.data(), outBuffer.size(), 100);
+    CHECK_EQUAL(8, len);
+    // Check RR frame
+    CHECK_EQUAL(0x7E, outBuffer[0]); // Flag
+    CHECK_EQUAL(0x01, outBuffer[1]); // Address field - CR bit must be cleared
+    CHECK_EQUAL(0x31, outBuffer[2]); // RR packet with N(R) = 1
+    CHECK_EQUAL(0x7E, outBuffer[3]); // Flag
+    // Check RR frame
+    CHECK_EQUAL(0x7E, outBuffer[4]); // Flag
+    CHECK_EQUAL(0x01, outBuffer[5]); // Address field - CR bit must be cleared
+    CHECK_EQUAL(0x51, outBuffer[6]); // RR packet with N(R) = 2
+    CHECK_EQUAL(0x7E, outBuffer[7]); // Flag
+    // Now we can send I-frames again
+}
+
+TEST(TINY_FD, ABM_RecieveOutOfOrderIFrames)
+{
+    establishConnection();
+    // Now we can send I-frames
+    auto read_result = tiny_fd_on_rx_data(handle, (uint8_t *)"\x7E\x03\x00\x11\x7E", 5); // I-frame in order
+    CHECK_EQUAL(TINY_SUCCESS, read_result);
+    read_result = tiny_fd_on_rx_data(handle, (uint8_t *)"\x7E\x03\x04\x22\x7E", 5); // I-frame out of order
+    CHECK_EQUAL(TINY_SUCCESS, read_result);
+    auto len = tiny_fd_get_tx_data(handle, outBuffer.data(), outBuffer.size(), 100);
+    CHECK_EQUAL(8, len);
+    // Check RR frame
+    CHECK_EQUAL(0x7E, outBuffer[0]); // Flag
+    CHECK_EQUAL(0x01, outBuffer[1]); // Address field - CR bit must be cleared
+    CHECK_EQUAL(0x31, outBuffer[2]); // RR packet with N(R) = 1
+    CHECK_EQUAL(0x7E, outBuffer[3]); // Flag
+    // Check RR frame
+    CHECK_EQUAL(0x7E, outBuffer[4]); // Flag
+    CHECK_EQUAL(0x03, outBuffer[5]); // Address field - CR bit must be cleared
+    CHECK_EQUAL(0x39, outBuffer[6]); // REJ packet with N(R) = 2
+    CHECK_EQUAL(0x7E, outBuffer[7]); // Flag
+    // Now we can send I-frames again
 }
