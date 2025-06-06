@@ -248,6 +248,8 @@ static void on_frame_read(void *user_data, uint8_t *data, int len)
     {
         __on_u_frame_read(handle, peer, data, len);
     }
+    // If I-frame is received when connection is not established, we should ignore it
+    // And let's attempt to initiate new connection
     else if ( handle->peers[peer].state != TINY_FD_STATE_CONNECTED && handle->peers[peer].state != TINY_FD_STATE_DISCONNECTING )
     {
         // Should send DM in case we receive here S- or I-frames.
