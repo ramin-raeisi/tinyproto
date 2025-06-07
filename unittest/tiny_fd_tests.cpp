@@ -244,5 +244,5 @@ TEST(TINY_FD, ABM_CheckMtuAPI)
     // Check MTU API
     int mtu = tiny_fd_get_mtu(handle);
     CHECK(mtu > 0); // MTU should be greater than 0
-    CHECK_EQUAL(35, mtu); // Assuming the MTU is 35 bytes according to protocol test configuration
+    CHECK_EQUAL(34, mtu); // Assuming the MTU is 34 bytes according to protocol test configuration
 }

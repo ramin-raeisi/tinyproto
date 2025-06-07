@@ -1,5 +1,5 @@
 /*
-    Copyright 2019-2024 (C) Alexey Dynda
+    Copyright 2019-2025 (C) Alexey Dynda
 
     This file is part of Tiny Protocol Library.
 
@@ -78,6 +78,9 @@ extern "C"
         TINY_FD_MODE_ARM = 0x02,
     };
 
+    /** 
+     * Forward declaration of tiny_fd_data_t structure.
+     */
     struct tiny_fd_data_t;
 
     /**
@@ -86,6 +89,71 @@ extern "C"
      */
     typedef struct tiny_fd_data_t *tiny_fd_handle_t;
 
+    /**
+     * Enumeration of frame types used in Tiny Full Duplex protocol.
+     */
+    typedef enum
+    {
+        TINY_FD_FRAME_TYPE_I = 0x00, ///< I-frame
+        TINY_FD_FRAME_TYPE_S = 0x01, ///< S-frame
+        TINY_FD_FRAME_TYPE_U = 0x02, ///< U-frame
+    } tiny_fd_frame_type_t;
+
+    /**
+     * Enumeration of frame subtypes used in Tiny Full Duplex protocol.
+     * These subtypes are used for S-frames and U-frames.
+     * The I-frames do not have subtypes, so this enumeration is not used for I-frames.
+     */
+    typedef enum
+    {
+        TINY_FD_FRAME_SUBTYPE_RR = 0x00, ///< S-frame subtype RR
+        TINY_FD_FRAME_SUBTYPE_REJ = 0x08, ///< S-frame subtype REJ
+
+        TINY_FD_FRAME_SUBTYPE_UA = 0x60, ///< U-frame subtype UA
+        TINY_FD_FRAME_SUBTYPE_FRMR = 0x84, ///< U-frame subtype FRMR
+        TINY_FD_FRAME_SUBTYPE_RSET = 0x8C, ///< U-frame subtype RSET
+        TINY_FD_FRAME_SUBTYPE_SABM = 0x2C, ///< U-frame subtype SABM
+        TINY_FD_FRAME_SUBTYPE_SNRM = 0x80, ///< U-frame subtype SNRM
+        TINY_FD_FRAME_SUBTYPE_DISC = 0x40, ///< U-frame subtype DISC
+    } tiny_fd_frame_subtype_t;
+
+    /**
+     * Enumeration of frame directions used in Tiny Full Duplex protocol.
+     */
+    typedef enum
+    {
+        TINY_FD_FRAME_DIRECTION_IN = 0x00, ///< Frame is incoming
+        TINY_FD_FRAME_DIRECTION_OUT = 0x01, ///< Frame is outgoing
+    } tiny_fd_frame_direction_t;
+
+    /**
+     * tiny_fd_log_frame_cb_t is a callback function, which is called every time frame is sent or received.
+     * This callback is useful for debugging purposes.
+     * 
+     * The main difference between this callback and on_frame_read_cb_t / on_frame_send_cb_t is that
+     * this callback is called for every frame, regardless of whether it is sent or received: I-frames, S-frames or U-frames.
+     * It provides detailed information about the frame, including its type, subtype, sequence numbers and data.
+     * 
+     * @param handle handle of Tiny.
+     * @param direction direction of the frame, can be TINY_FD_FRAME_DIRECTION_IN or TINY_FD_FRAME_DIRECTION_OUT.
+     * @param frame_type type of the frame, can be TINY_FD_FRAME_TYPE_I, TINY_FD_FRAME_TYPE_S or TINY_FD_FRAME_TYPE_U.
+     * @param frame_subtype subtype of the frame, can be TINY_FD_FRAME_SUBTYPE_RR, TINY_FD_FRAME_SUBTYPE_REJ,
+     *                     TINY_FD_FRAME_SUBTYPE_UA, TINY_FD_FRAME_SUBTYPE_FRMR, TINY_FD_FRAME_SUBTYPE_RSET,
+     *                     TINY_FD_FRAME_SUBTYPE_SABM, TINY_FD_FRAME_SUBTYPE_SNRM or TINY_FD_FRAME_SUBTYPE_DISC.
+     * @param ns N(S) sequence number of the frame.
+     * @param nr N(R) sequence number of the frame.
+     * @param data pointer to the frame data.
+     * @param len length of the frame data.
+     */
+    typedef void (*tiny_fd_log_frame_cb_t)(tiny_fd_handle_t handle,
+                       tiny_fd_frame_direction_t direction,
+                       tiny_fd_frame_type_t frame_type,
+                       tiny_fd_frame_subtype_t frame_subtype,
+                       uint8_t ns,
+                       uint8_t nr,
+                       const uint8_t *data,
+                       int len);
+   
     /**
      * This structure is used for initialization of Tiny Full Duplex protocol.
      */
@@ -152,6 +220,13 @@ extern "C"
          * Can be NULL.
          */
         on_connect_event_cb_t on_connect_event_cb;
+
+        /**
+         * Callback to log frames. Can be NULL.
+         * If this callback is set, it will be called for every frame sent or received.
+         * This is useful for debugging purposes.
+         */
+        tiny_fd_log_frame_cb_t log_frame_cb;
 
         /**
          * Local station address. The field has meaning only for secondary stations.

@@ -118,6 +118,8 @@ extern "C"
         on_frame_send_cb_t on_send_cb;
         /// Callback to get connect/disconnect notification
         on_connect_event_cb_t on_connect_event_cb;
+        /// Callback to log frames
+        tiny_fd_log_frame_cb_t log_frame_cb;
         /// hdlc information
         hdlc_ll_handle_t _hdlc;
         /// Timeout for operations with acknowledge
@@ -147,6 +149,12 @@ extern "C"
         /// user specific data
         void *user_data;
     } tiny_fd_data_t;
+
+    extern void __tiny_fd_log_frame(
+                        tiny_fd_handle_t handle,
+                       tiny_fd_frame_direction_t direction,
+                       const uint8_t *data,
+                       int len);
 
 #ifdef __cplusplus
 }

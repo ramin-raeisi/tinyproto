@@ -64,79 +64,6 @@ static uint8_t __switch_to_next_peer(tiny_fd_handle_t handle)
     return start_peer != handle->next_peer;
 }
 
-#if defined(TINY_FD_DEBUG) && defined(TINY_FILE_LOGGING)
-///////////////////////////////////////////////////////////////////////////////
-
-static char __get_frame_type(uint8_t control)
-{
-    if ((control & HDLC_I_FRAME_MASK) == HDLC_I_FRAME_BITS)
-    {
-        return 'I';
-    }
-    else if ((control & HDLC_S_FRAME_MASK) == HDLC_S_FRAME_BITS)
-    {
-        return 'S';
-    }
-    return 'U';
-}
-
-///////////////////////////////////////////////////////////////////////////////
-
-static const char *__get_frame_type_str(uint8_t control)
-{
-    char type = __get_frame_type(control);
-    if (type == 'I') {
-        return "    ";
-    }
-    else if (type == 'S') {
-        switch (control & HDLC_S_FRAME_TYPE_MASK)
-        {
-            case HDLC_S_FRAME_TYPE_RR:  return "  RR";
-            case HDLC_S_FRAME_TYPE_REJ: return " REJ";
-            default:                    return " UNK";
-        }
-    }
-    switch (control & HDLC_U_FRAME_TYPE_MASK)
-    {
-        case HDLC_U_FRAME_TYPE_UA:   return "  UA";
-        case HDLC_U_FRAME_TYPE_FRMR: return "FRMR";
-        case HDLC_U_FRAME_TYPE_RSET: return "RSET";
-        case HDLC_U_FRAME_TYPE_SABM: return "SABM";
-        case HDLC_U_FRAME_TYPE_SNRM: return "SNRM";
-        case HDLC_U_FRAME_TYPE_DISC: return "DISC";
-        default:                     return " UNK";
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////
-
-static uint8_t __get_frame_sequence(uint8_t control)
-{
-    char type = __get_frame_type(control);
-    switch (type)
-    {
-        case 'I': return (control >> 1) & 0x07;
-        case 'S':
-        case 'U':
-        default: return 0;
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////
-
-static uint8_t __get_awaiting_sequence(uint8_t control)
-{
-    char type = __get_frame_type(control);
-    switch (type)
-    {
-        case 'I': return control >> 5;
-        case 'S': return control >> 5;
-        case 'U':
-        default: return 0;
-    }
-}
-#endif // TINY_FD_DEBUG && TINY_FILE_LOGGING
-
 ///////////////////////////////////////////////////////////////////////////////
 
 #if 0
@@ -232,8 +159,7 @@ static void on_frame_read(void *user_data, uint8_t *data, int len)
         LOG(TINY_LOG_WRN, "%s: received too small frame\n", "FD");
         return;
     }
-    FILE_LOG((uintptr_t)handle, " IN", __get_frame_type(data[1]), __get_frame_type_str(data[1]),
-            __get_frame_sequence(data[1]), __get_awaiting_sequence(data[1]));
+    __tiny_fd_log_frame(handle, TINY_FD_FRAME_DIRECTION_IN, data, len);
     uint8_t peer = __address_field_to_peer( handle, ((uint8_t *)data)[0] );
     if ( peer == 0xFF )
     {
@@ -444,6 +370,7 @@ int tiny_fd_init(tiny_fd_handle_t *handle, tiny_fd_init_t *init)
     protocol->on_read_cb = init->on_read_cb;
     protocol->on_send_cb = init->on_send_cb;
     protocol->on_connect_event_cb = init->on_connect_event_cb;
+    protocol->log_frame_cb = init->log_frame_cb;
     protocol->send_timeout = init->send_timeout;
     // By default assign primary address
     protocol->addr = (init->addr ? (init->addr << 2) : HDLC_PRIMARY_ADDR ) | HDLC_E_BIT;
@@ -594,9 +521,7 @@ static uint8_t *tiny_fd_get_next_frame_to_send(tiny_fd_handle_t handle, int *len
         header->control |= HDLC_P_BIT;
         handle->last_marker_ts = tiny_millis();
         handle->peers[peer].last_ka_ts = tiny_millis();
-        FILE_LOG((uintptr_t)handle, "OUT", __get_frame_type(header->control),
-                 __get_frame_type_str(header->control),
-                 __get_frame_sequence(header->control), __get_awaiting_sequence(header->control));
+        __tiny_fd_log_frame(handle, TINY_FD_FRAME_DIRECTION_OUT, data, *len);
     }
     tiny_mutex_unlock(&handle->frames.mutex);
     return data;

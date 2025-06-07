@@ -39,19 +39,20 @@ Tiny Protocol is NOT an application layer protocol, although, for example, it ca
 
 ## Key Features
 
-Main features:
- * Hot plug/unplug support for ABM (peer to peer).
- * Connection autorecover for Full duplex (both for ABM and NRM modes) and Light protocols (with enabled crc)
- * Error detection: Simple 8-bit checksum (sum of bytes), FCS16 (CCITT-16), FCS32 (CCITT-32)
- * Platform independent hdlc framing implementation (hdlc low level API: hdlc_ll_xxxx)
- * Easy to use Light protcol - analogue of a SLIP protcol (tiny_light_xxxx API, see examples)
- * Full-duplex protocol (tiny_fd_xxxx true RFC 1662 implementation, supports confirmation, frames retransmissions: ABM and NRM modes )
- * one to one and one to many modes
- * Frames of maximum 32K or 2G size (payload limit depends on platfrom).
- * Low SRAM consumption (starts at 60 bytes).
- * Low Flash consumption (starts at 1.2KiB, features can be disabled and enabled at compilation time)
- * No dynamic memory allocation!
- * Special serial loopback tool for debug purposes and performance testing (ABM mode only)
+**Main Features:**
+
+- **Hot Plug/Unplug Support:** Seamless connection and disconnection handling for ABM (peer-to-peer) mode.
+- **Comprehensive Logging:** HDLC full-duplex log function simplifies protocol debugging by capturing all packets sent or received by a peer, including data, service (S), and unnumbered (U) frames.
+- **Automatic Connection Recovery:** Robust autorecovery for full-duplex (ABM and NRM modes) and Light protocols (with CRC enabled).
+- **Error Detection:** Supports simple 8-bit checksum, FCS16 (CCITT-16), and FCS32 (CCITT-32) for reliable communication.
+- **Platform-Independent HDLC Framing:** Low-level HDLC API (`hdlc_ll_xxxx`) ensures portability across platforms.
+- **Easy-to-Use Light Protocol:** Lightweight protocol similar to SLIP (`tiny_light_xxxx` API), see examples for usage.
+- **Full-Duplex Protocol:** True RFC 1662 implementation (`tiny_fd_xxxx`), supporting acknowledgments, frame retransmissions, and both ABM and NRM modes.
+- **Flexible Topologies:** Supports both one-to-one and one-to-many communication modes.
+- **Large Frame Support:** Handles frames up to 32K or 2G in size (payload limit depends on platform).
+- **Low Resource Consumption:** Minimal SRAM usage (starting at 60 bytes) and flash footprint (starting at 1.3 KiB). Features can be enabled or disabled at compile time.
+- **No Dynamic Memory Allocation:** Ensures predictable memory usage.
+- **Serial Loopback Tool:** Dedicated tool for debugging and performance testing (ABM mode only).
 
 ## Supported platforms
 
