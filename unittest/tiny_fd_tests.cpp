@@ -45,6 +45,8 @@ TEST_GROUP(TINY_FD)
         init.pdata = this;
         init.on_connect_event_cb = __onConnect;
         init.on_read_cb = onRead;
+        init.on_send_cb = onSend;
+        init.log_frame_cb = logFrame;
         init.buffer = inBuffer.data();
         init.buffer_size = inBuffer.size();
         init.window_frames = 7;
@@ -61,29 +63,53 @@ TEST_GROUP(TINY_FD)
     void teardown()
     {
         tiny_fd_close(handle);
+        logFrameFunc = nullptr;
     }
 
     void onConnect(uint8_t, bool status) { connected = status; }
     void onRead(uint8_t, uint8_t *, int) { }
+    void onSend(uint8_t, const uint8_t *, int) { }
 
-    static void __onConnect(void *handle, uint8_t address, bool connected)
+    static void __onConnect(void *udata, uint8_t address, bool connected)
     {
         // get the instance of the test class
-        auto *self = static_cast<TEST_GROUP_CppUTestGroupTINY_FD *>(handle);
+        auto *self = static_cast<TEST_GROUP_CppUTestGroupTINY_FD *>(udata);
         self->onConnect(address, connected);
     }
 
-    static void onRead(void *handle, uint8_t address, uint8_t *buf, int len)
+    static void onRead(void *udata, uint8_t address, uint8_t *buf, int len)
     {
         // get the instance of the test class
-        auto *self = static_cast<TEST_GROUP_CppUTestGroupTINY_FD *>(handle);
+        auto *self = static_cast<TEST_GROUP_CppUTestGroupTINY_FD *>(udata);
         self->onRead(address, buf, len);
+    }
+
+    static void onSend(void *udata, uint8_t address, const uint8_t *buf, int len)
+    {
+        // get the instance of the test class
+        auto *self = static_cast<TEST_GROUP_CppUTestGroupTINY_FD *>(udata);
+        self->onSend(address, buf, len);
+    }
+
+    static void logFrame(void *udata, tiny_fd_handle_t handle, tiny_fd_frame_direction_t direction,
+                        tiny_fd_frame_type_t frame_type, tiny_fd_frame_subtype_t frame_subtype,
+                        uint8_t ns, uint8_t nr, const uint8_t *data, int len)
+    {
+        // get the instance of the test class
+        auto *self = static_cast<TEST_GROUP_CppUTestGroupTINY_FD *>(udata);
+        if (!self->logFrameFunc) {
+            return; // No logging function set
+        }
+        self->logFrameFunc(handle, direction, frame_type, frame_subtype, ns, nr, data, len);
     }
 
     tiny_fd_handle_t handle = nullptr;
     bool connected = false;
     std::array<uint8_t, 1024> inBuffer{};
     std::array<uint8_t, 1024> outBuffer{};
+    std::function<void(tiny_fd_handle_t, tiny_fd_frame_direction_t,
+                       tiny_fd_frame_type_t, tiny_fd_frame_subtype_t, uint8_t, uint8_t,
+                       const uint8_t *, int)> logFrameFunc = nullptr;
 
     void establishConnection()
     {
@@ -245,4 +271,60 @@ TEST(TINY_FD, ABM_CheckMtuAPI)
     int mtu = tiny_fd_get_mtu(handle);
     CHECK(mtu > 0); // MTU should be greater than 0
     CHECK_EQUAL(34, mtu); // Assuming the MTU is 34 bytes according to protocol test configuration
+}
+
+TEST(TINY_FD, ABM_CheckLoggerFunction)
+{
+    int counter = 0;
+    // Check logger function
+    auto log_frame_func = [&counter](tiny_fd_handle_t handle,
+                                             tiny_fd_frame_direction_t direction,
+                                             tiny_fd_frame_type_t frame_type,
+                                             tiny_fd_frame_subtype_t frame_subtype,
+                                             uint8_t ns,
+                                             uint8_t nr,
+                                             const uint8_t *data,
+                                             int len) {
+        switch (counter) {
+            case 0: // SABM frame
+                CHECK_EQUAL(TINY_FD_FRAME_TYPE_U, frame_type);
+                CHECK_EQUAL(TINY_FD_FRAME_SUBTYPE_SABM, frame_subtype);
+                CHECK_EQUAL(0x00, ns);
+                CHECK_EQUAL(0x00, nr);
+                CHECK_EQUAL(2, len);
+                CHECK_EQUAL(0x03, data[0]); // Address field
+                CHECK_EQUAL(0x2F, data[1]); // SABM packet
+                break;
+            case 1: // UA frame
+                CHECK_EQUAL(TINY_FD_FRAME_TYPE_U, frame_type);
+                CHECK_EQUAL(TINY_FD_FRAME_SUBTYPE_UA, frame_subtype);
+                CHECK_EQUAL(0x00, ns);
+                CHECK_EQUAL(0x00, nr);
+                CHECK_EQUAL(2, len);
+                CHECK_EQUAL(0x01, data[0]); // Address field
+                CHECK_EQUAL(0x73, data[1]); // UA packet
+                break;
+            case 2: // I-frame
+                CHECK_EQUAL(TINY_FD_FRAME_TYPE_I, frame_type);
+                CHECK_EQUAL(TINY_FD_FRAME_SUBTYPE_RR, frame_subtype); // Should be RR frame
+                CHECK_EQUAL(0x00, ns); // N(S) = 0
+                CHECK_EQUAL(0x00, nr); // N(R) = 1
+                CHECK_EQUAL(3, len);
+                CHECK_EQUAL(0x03, data[0]); // Address field
+                CHECK_EQUAL(0x00, data[1]); // Data byte
+                CHECK_EQUAL(0x11, data[2]); // Data byte
+                break;
+            default:
+                FAIL("Unexpected frame logged");
+                break;
+        }
+        counter++;
+    };
+    logFrameFunc = log_frame_func; // Set the logging function
+    establishConnection(); // This will trigger the logging function for SABM and UA frames
+    CHECK_EQUAL(2, counter); // We should have logged 2 frames: SABM and UA
+    // Now we can send I-frames
+    auto read_result = tiny_fd_on_rx_data(handle, (uint8_t *)"\x7E\x03\x00\x11\x7E", 5); // I-frame in order
+    CHECK_EQUAL(TINY_SUCCESS, read_result);
+    CHECK_EQUAL(3, counter); // We should have logged 3 frames now
 }

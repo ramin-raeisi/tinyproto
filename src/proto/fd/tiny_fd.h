@@ -134,6 +134,7 @@ extern "C"
      * this callback is called for every frame, regardless of whether it is sent or received: I-frames, S-frames or U-frames.
      * It provides detailed information about the frame, including its type, subtype, sequence numbers and data.
      * 
+     * @param udata user data, passed during Tiny Full Duplex initialization.
      * @param handle handle of Tiny.
      * @param direction direction of the frame, can be TINY_FD_FRAME_DIRECTION_IN or TINY_FD_FRAME_DIRECTION_OUT.
      * @param frame_type type of the frame, can be TINY_FD_FRAME_TYPE_I, TINY_FD_FRAME_TYPE_S or TINY_FD_FRAME_TYPE_U.
@@ -145,7 +146,8 @@ extern "C"
      * @param data pointer to the frame data.
      * @param len length of the frame data.
      */
-    typedef void (*tiny_fd_log_frame_cb_t)(tiny_fd_handle_t handle,
+    typedef void (*tiny_fd_log_frame_cb_t)(void *udata,
+                       tiny_fd_handle_t handle,
                        tiny_fd_frame_direction_t direction,
                        tiny_fd_frame_type_t frame_type,
                        tiny_fd_frame_subtype_t frame_subtype,

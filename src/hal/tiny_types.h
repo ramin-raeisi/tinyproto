@@ -224,12 +224,12 @@ extern "C"
 
     /**
      * on_connect_event_cb_t is a callback function, which is called every time connection is established or interrupted.
-     * @param handle handle of Tiny.
+     * @param udata user data
      * @param address remote client id (only for master device).
      * @param connected event occured.
      * @return None.
      */
-    typedef void (*on_connect_event_cb_t)(void *handle, uint8_t address, bool connected);
+    typedef void (*on_connect_event_cb_t)(void *udata, uint8_t address, bool connected);
 
 #define EVENT_BITS_ALL 0xFF ///< All bits supported by tiny HAL events
 #define EVENT_BITS_CLEAR 1  ///< Flag, used in tiny_events_wait()

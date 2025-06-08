@@ -92,15 +92,15 @@ static uint8_t __get_awaiting_sequence(uint8_t control)
 #if defined(TINY_FD_DEBUG) && defined(TINY_FILE_LOGGING)
 ///////////////////////////////////////////////////////////////////////////////
 
-static const char *__get_frame_type_str(uint8_t control)
+static const char __get_frame_type_str(uint8_t control)
 {
     tiny_fd_frame_type_t type = __get_frame_type(control);
     switch (type)
     {
-        case TINY_FD_FRAME_TYPE_I: return "I";
-        case TINY_FD_FRAME_TYPE_S: return "S";
-        case TINY_FD_FRAME_TYPE_U: return "U";
-        default: return "U";
+        case TINY_FD_FRAME_TYPE_I: return 'I';
+        case TINY_FD_FRAME_TYPE_S: return 'S';
+        case TINY_FD_FRAME_TYPE_U: return 'U';
+        default: return 'U';
     }
 }
 
@@ -143,7 +143,9 @@ void __tiny_fd_log_frame(tiny_fd_handle_t handle,
         return;
     }
     if (handle->log_frame_cb) {
-        handle->log_frame_cb(handle, direction,
+        handle->log_frame_cb(handle->user_data,
+                             handle,
+                             direction,
                              __get_frame_type(data[1]),
                              __get_frame_subtype(data[1]),
                              __get_frame_sequence(data[1]),
