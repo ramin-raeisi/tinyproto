@@ -56,7 +56,7 @@ setup(
     author_email='alexey.dynda@gmail.com',
     url='https://github.com/lexus2k/tinyproto',
     license='LGPLv3',
-    version='1.0.0',
+    version='1.1.1',
     description='tinyproto module wrapper',
     package_dir = { "tinyproto": "./python" },
     packages = ['tinyproto.wrappers', 'tinyproto.helpers'],
