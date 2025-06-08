@@ -488,6 +488,8 @@ extern "C"
      * @param timeout  timeout in milliseconds to wait until data are placed to outgoing queue
      *
      * @return Success result or error code
+     * @note This function doesn't return number of bytes sent, but rather returns
+     *       TINY_SUCCESS in case of success, or error code in case of failure.
      */
     extern int tiny_fd_send_packet(tiny_fd_handle_t handle, const void *buf, int len, uint32_t timeout);
 
