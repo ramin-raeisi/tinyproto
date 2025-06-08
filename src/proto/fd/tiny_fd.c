@@ -260,9 +260,8 @@ static void on_frame_send(void *user_data, const uint8_t *data, int len)
 
 ///////////////////////////////////////////////////////////////////////////////
 
-int tiny_fd_init(tiny_fd_handle_t *handle, tiny_fd_init_t *init)
+static int __tiny_fd_init_validate(tiny_fd_handle_t *handle, tiny_fd_init_t *init, uint8_t peers_count)
 {
-    const uint8_t peers_count = init->peers_count == 0 ? 1 : init->peers_count;
     *handle = NULL;
     if ( (0 == init->on_read_cb) || (0 == init->buffer) || (0 == init->buffer_size) )
     {
@@ -273,7 +272,7 @@ int tiny_fd_init(tiny_fd_handle_t *handle, tiny_fd_init_t *init)
     {
         int size = tiny_fd_buffer_size_by_mtu_ex(peers_count, 0, init->window_frames, init->crc_type, 1);
         init->mtu = (init->buffer_size - size) / (init->window_frames + 1);
-        if ( init->mtu < 1 )
+        if ( init->mtu < 2 )
         {
             LOG(TINY_LOG_CRIT, "Calculated mtu size is zero, no payload transfer is available%s", "\n");
             return TINY_ERR_OUT_OF_MEMORY;
@@ -294,6 +293,21 @@ int tiny_fd_init(tiny_fd_handle_t *handle, tiny_fd_init_t *init)
     {
         LOG(TINY_LOG_CRIT, "HDLC uses timeouts for ACK, at least retry_timeout, or send_timeout must be specified%s", "\n");
         return TINY_ERR_INVALID_DATA;
+    }
+    return TINY_SUCCESS;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+int tiny_fd_init(tiny_fd_handle_t *handle, tiny_fd_init_t *init)
+{
+    const uint8_t peers_count = init->peers_count == 0 ? 1 : init->peers_count;
+    {
+        int result = __tiny_fd_init_validate(handle, init, peers_count);
+        if (result != TINY_SUCCESS)
+        {
+            return result;
+        }
     }
     memset(init->buffer, 0, init->buffer_size);
 
@@ -815,20 +829,27 @@ int tiny_fd_buffer_size_by_mtu(int mtu, int window)
 
 int tiny_fd_buffer_size_by_mtu_ex(uint8_t peers_count, int mtu, int tx_window, hdlc_crc_t crc_type, int rx_window)
 {
+    // If peers_count is not specified, then we assume that there is only one peer
     if ( !peers_count )
     {
         peers_count = 1;
     }
-    // Alignment requirements are already satisfied by hdlc_ll_get_buf_size_ex() subfunction call
-    return sizeof(tiny_fd_data_t) + TINY_ALIGN_STRUCT_VALUE - 1 +
-           peers_count * sizeof(tiny_fd_peer_info_t) +
-           // RX side
-           hdlc_ll_get_buf_size_ex(mtu + sizeof(tiny_frame_header_t), crc_type, rx_window) +
+    // Aligned size to keep protocol related state machine information
+    int header_size = sizeof(tiny_fd_data_t) + TINY_ALIGN_STRUCT_VALUE - 1 +
+                      peers_count * sizeof(tiny_fd_peer_info_t);
+    // Buffer size to hold HDLC low level protocol RX data
+    int hdlc_level_rx_size = hdlc_ll_get_buf_size_ex(mtu + sizeof(tiny_frame_header_t), crc_type, rx_window);
+    // minimum size of i-frame including header and payload
+    int i_frame_tx_size = (sizeof(tiny_fd_frame_info_t *) + sizeof(tiny_fd_frame_info_t) + mtu -
+            sizeof(((tiny_fd_frame_info_t *)0)->payload));
+    // minimum size of s-frame/u-frame including header and 2-bytes payload
+    // this size includes internal library overhead, introduced by the pointer to the frame info
+    int u_s_frame_tx_size = (sizeof(tiny_fd_frame_info_t *) + sizeof(tiny_fd_frame_info_t));
+    return header_size +
+           hdlc_level_rx_size +
            // TX side
-           (sizeof(tiny_fd_frame_info_t *) + sizeof(tiny_fd_frame_info_t) + mtu -
-            sizeof(((tiny_fd_frame_info_t *)0)->payload)) *
-               tx_window +
-           (sizeof(tiny_fd_frame_info_t *) + sizeof(tiny_fd_frame_info_t)) * TINY_FD_U_QUEUE_MAX_SIZE;
+           i_frame_tx_size * tx_window +
+           u_s_frame_tx_size * TINY_FD_U_QUEUE_MAX_SIZE;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -850,18 +871,20 @@ int tiny_fd_get_mtu(tiny_fd_handle_t handle)
 int tiny_fd_send_to(tiny_fd_handle_t handle, uint8_t address, const void *data, int len, uint32_t timeout)
 {
     const uint8_t *ptr = (const uint8_t *)data;
-    int left = len;
-    while ( left > 0 )
+    int left_bytes = len;
+    while ( left_bytes > 0 )
     {
-        int size = left < tiny_fd_queue_get_mtu( &handle->frames.i_queue ) ? left : tiny_fd_queue_get_mtu( &handle->frames.i_queue );
+        int size = left_bytes < tiny_fd_queue_get_mtu( &handle->frames.i_queue ) ?
+                        left_bytes : tiny_fd_queue_get_mtu( &handle->frames.i_queue );
         int result = tiny_fd_send_packet_to(handle, address, ptr, size, timeout);
         if ( result != TINY_SUCCESS )
         {
             break;
         }
-        left -= result;
+        ptr += size;
+        left_bytes -= size;
     }
-    return left;
+    return len - left_bytes;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
