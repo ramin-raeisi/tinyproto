@@ -90,8 +90,9 @@ extern "C"
         uint8_t confirm_ns;  // next frame to be confirmed
         uint8_t last_ns;     // next free frame in cycle buffer
 
-        uint32_t last_i_ts;  // last sent I-frame timestamp
-        uint32_t last_ka_ts; // last keep alive timestamp
+        uint32_t last_sent_i_ts;           // last sent I-frame timestamp
+        uint32_t last_sent_frame_ts;       // last sent keep alive timestamp
+        uint32_t last_received_frame_ts;   // last keep alive timestamp
         uint8_t ka_confirmed;
         uint8_t retries;     // Number of retries to perform before timeout takes place
 

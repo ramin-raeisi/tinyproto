@@ -213,8 +213,8 @@ TEST(FD, no_ka_switch_to_disconnected)
     TinyHelperFd helper2(&conn.endpoint2(), 1024, nullptr, 4, 100);
     conn.endpoint1().setTimeout(30);
     conn.endpoint2().setTimeout(30);
-    helper1.set_ka_timeout(100);
-    helper2.set_ka_timeout(100);
+    helper1.set_ka_timeout(50);
+    helper2.set_ka_timeout(50);
     helper1.run(true);
     helper2.run(true);
 

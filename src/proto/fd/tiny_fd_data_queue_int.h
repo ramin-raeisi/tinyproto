@@ -49,9 +49,9 @@ static inline bool __all_frames_are_sent(tiny_fd_handle_t handle, uint8_t peer)
 
 ///////////////////////////////////////////////////////////////////////////////
 
-static inline uint32_t __time_passed_since_last_i_frame(tiny_fd_handle_t handle, uint8_t peer)
+static inline uint32_t __time_passed_since_last_sent_i_frame(tiny_fd_handle_t handle, uint8_t peer)
 {
-    return (uint32_t)(tiny_millis() - handle->peers[peer].last_i_ts);
+    return (uint32_t)(tiny_millis() - handle->peers[peer].last_sent_i_ts);
 }
 
 ///////////////////////////////////////////////////////////////////////////////

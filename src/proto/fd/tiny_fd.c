@@ -77,7 +77,14 @@ static inline uint8_t __number_of_awaiting_tx_i_frames(tiny_fd_handle_t handle, 
 
 static inline uint32_t __time_passed_since_last_frame_received(tiny_fd_handle_t handle, uint8_t peer)
 {
-    return (uint32_t)(tiny_millis() - handle->peers[peer].last_ka_ts);
+    return (uint32_t)(tiny_millis() - handle->peers[peer].last_received_frame_ts);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+static inline uint32_t __time_passed_since_last_frame_sent(tiny_fd_handle_t handle, uint8_t peer)
+{
+    return (uint32_t)(tiny_millis() - handle->peers[peer].last_sent_frame_ts);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -103,7 +110,8 @@ static void __switch_to_connected_state(tiny_fd_handle_t handle, uint8_t peer)
         tiny_fd_queue_reset_for( &handle->frames.i_queue, __peer_to_address_field( handle, peer ) );
         // Reset last arrived frame timestamp on connection.
         // This is required to avoid disconnection on keep alive timeout at the beginning of connection
-        handle->peers[peer].last_ka_ts = tiny_millis();
+        handle->peers[peer].last_received_frame_ts = tiny_millis();
+        handle->peers[peer].last_sent_frame_ts = tiny_millis();
         tiny_events_set(&handle->peers[peer].events, FD_EVENT_CAN_ACCEPT_I_FRAMES);
         tiny_events_set(
             &handle->events,
@@ -167,7 +175,7 @@ static void on_frame_read(void *user_data, uint8_t *data, int len)
         return;
     }
     tiny_mutex_lock(&handle->frames.mutex);
-    handle->peers[peer].last_ka_ts = tiny_millis();
+    handle->peers[peer].last_received_frame_ts = tiny_millis();
     handle->peers[peer].ka_confirmed = 1;
     uint8_t control = ((uint8_t *)data)[1];
     if ( (control & HDLC_U_FRAME_MASK) == HDLC_U_FRAME_MASK )
@@ -489,7 +497,7 @@ static uint8_t *tiny_fd_get_next_i_frame(tiny_fd_handle_t handle, int *len, uint
         handle->peers[peer].next_ns &= seq_bits_mask;
         // Move to different place
         handle->peers[peer].sent_nr = handle->peers[peer].next_nr;
-        handle->peers[peer].last_i_ts = tiny_millis();
+        handle->peers[peer].last_sent_i_ts = tiny_millis();
     }
     return data;
 }
@@ -534,7 +542,7 @@ static uint8_t *tiny_fd_get_next_frame_to_send(tiny_fd_handle_t handle, int *len
         tiny_frame_header_t *header = (tiny_frame_header_t *)data;
         header->control |= HDLC_P_BIT;
         handle->last_marker_ts = tiny_millis();
-        handle->peers[peer].last_ka_ts = tiny_millis();
+        handle->peers[peer].last_sent_frame_ts = tiny_millis();
         __tiny_fd_log_frame(handle, TINY_FD_FRAME_DIRECTION_OUT, data, *len);
     }
     tiny_mutex_unlock(&handle->frames.mutex);
@@ -548,7 +556,7 @@ static void tiny_fd_connected_check_idle_timeout(tiny_fd_handle_t handle, uint8_
     tiny_mutex_lock(&handle->frames.mutex);
     // If all I-frames are sent and no respond from the remote side
     if ( __has_unconfirmed_frames(handle, peer) && __all_frames_are_sent(handle, peer) &&
-         __time_passed_since_last_i_frame(handle, peer) >= handle->retry_timeout )
+         __time_passed_since_last_sent_i_frame(handle, peer) >= handle->retry_timeout )
     {
         // if sent frame was not confirmed due to noisy line
         if ( handle->peers[peer].retries > 0 )
@@ -556,7 +564,7 @@ static void tiny_fd_connected_check_idle_timeout(tiny_fd_handle_t handle, uint8_
             LOG(TINY_LOG_WRN,
                 "[%p] Timeout, resending unconfirmed frames: last(%" PRIu32 " ms, now(%" PRIu32 " ms), timeout(%" PRIu32
                 " ms))\n",
-                handle, handle->peers[peer].last_i_ts, tiny_millis(), handle->retry_timeout);
+                handle, handle->peers[peer].last_sent_i_ts, tiny_millis(), handle->retry_timeout);
             handle->peers[peer].retries--;
             // Do not use mutex for confirm_ns value as it is byte-value
             __resend_all_unconfirmed_frames(handle, peer, 0, handle->peers[peer].confirm_ns);
@@ -567,24 +575,24 @@ static void tiny_fd_connected_check_idle_timeout(tiny_fd_handle_t handle, uint8_
             __switch_to_disconnected_state(handle, peer);
         }
     }
-    else if ( __time_passed_since_last_frame_received(handle, peer) > handle->ka_timeout )
+    else if ( __time_passed_since_last_frame_received(handle, peer) >= handle->ka_timeout * 2 )
     {
         if ( !handle->peers[peer].ka_confirmed )
         {
             LOG(TINY_LOG_ERR, "[%p] No keep alive after timeout\n", handle);
             __switch_to_disconnected_state(handle, peer);
         }
-        else
-        {
-            // Nothing to send, all frames are confirmed, just send keep alive
-            tiny_frame_header_t frame = {
-                .address = __peer_to_address_field( handle, peer ),
-                .control = HDLC_S_FRAME_BITS | HDLC_S_FRAME_TYPE_RR | (handle->peers[peer].next_nr << 5),
-            };
-            handle->peers[peer].ka_confirmed = 0;
-            __put_u_s_frame_to_tx_queue(handle, TINY_FD_QUEUE_S_FRAME, &frame, 2);
-        }
-        handle->peers[peer].last_ka_ts = tiny_millis();
+    }
+    else if ( __time_passed_since_last_frame_sent(handle, peer) >= handle->ka_timeout )
+    {
+        // Nothing to send, all frames are confirmed, just send keep alive
+        tiny_frame_header_t frame = {
+            .address = __peer_to_address_field( handle, peer ),
+            .control = HDLC_S_FRAME_BITS | HDLC_S_FRAME_TYPE_RR | (handle->peers[peer].next_nr << 5),
+        };
+        handle->peers[peer].ka_confirmed = 0;
+        __put_u_s_frame_to_tx_queue(handle, TINY_FD_QUEUE_S_FRAME, &frame, 2);
+        handle->peers[peer].last_sent_frame_ts = tiny_millis();
     }
     tiny_mutex_unlock(&handle->frames.mutex);
 }
@@ -611,7 +619,7 @@ static void tiny_fd_disconnected_check_idle_timeout(tiny_fd_handle_t handle, uin
                        handle->next_peer, __peer_to_address_field( handle, peer ));
             }
             handle->peers[peer].state = TINY_FD_STATE_CONNECTING;
-            handle->peers[peer].last_ka_ts = tiny_millis();
+            handle->peers[peer].last_received_frame_ts = tiny_millis();
         }
     }
     tiny_mutex_unlock(&handle->frames.mutex);
@@ -965,7 +973,7 @@ int tiny_fd_register_peer(tiny_fd_handle_t handle, uint8_t address)
         if ( handle->peers[peer].addr == 0xFF )
         {
             handle->peers[peer].addr = address;
-            handle->peers[peer].last_ka_ts = (uint32_t)(tiny_millis() - handle->retry_timeout);
+            handle->peers[peer].last_received_frame_ts = (uint32_t)(tiny_millis() - handle->retry_timeout);
             tiny_mutex_unlock(&handle->frames.mutex);
             return TINY_SUCCESS;
         }
