@@ -385,3 +385,32 @@ TEST(TINY_FD, ABM_CheckMtuAndSendSplit)
     result = tiny_fd_send_packet_to(handle, TINY_FD_PRIMARY_ADDR, (const void *)"\x01\x02\x03", 3, 1000);
     CHECK_EQUAL(TINY_ERR_DATA_TOO_LARGE, result); // Should return error for frame larger than MTU
 }
+
+TEST(TINY_FD, ABM_CheckReceiveReadyWithCommandBitSet)
+{
+    // On Receive Ready with command bit set, and if there is no data to send,
+    // we should send RR frame with command bit cleared
+    establishConnection(); // Establish connection first
+    // Emulate receiving a Receive Ready frame with poll bit set
+    auto read_result = tiny_fd_on_rx_data(handle, (uint8_t *)"\x7E\x03\x11\x7E", 4); // RR frame with poll bit set
+    CHECK_EQUAL(TINY_SUCCESS, read_result);
+    int len = tiny_fd_get_tx_data(handle, outBuffer.data(), outBuffer.size(), 100);
+    CHECK_EQUAL(4, len); // We should have sent RR frame
+    // Check RR frame
+    CHECK_EQUAL(0x7E, outBuffer[0]); // Flag
+    CHECK_EQUAL(0x01, outBuffer[1]); // Address field - CR bit must be cleared
+    CHECK_EQUAL(0x11, outBuffer[2]); // RR packet with N(R) = 0
+    CHECK_EQUAL(0x7E, outBuffer[3]); // Flag
+}
+
+TEST(TINY_FD, ABM_CheckReceiveReadyWithCommandBitCleared)
+{
+    // On Receive Ready with command bit set, and if there is no data to send,
+    // we should send RR frame with command bit cleared
+    establishConnection(); // Establish connection first
+    // Emulate receiving a Receive Ready frame with poll bit set
+    auto read_result = tiny_fd_on_rx_data(handle, (uint8_t *)"\x7E\x01\x11\x7E", 4); // RR frame with poll bit set
+    CHECK_EQUAL(TINY_SUCCESS, read_result);
+    int len = tiny_fd_get_tx_data(handle, outBuffer.data(), outBuffer.size(), 100);
+    CHECK_EQUAL(0, len); // We should have sent RR frame
+}
