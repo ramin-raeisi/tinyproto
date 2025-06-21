@@ -63,13 +63,13 @@ static uint8_t __address_field_to_peer(tiny_fd_handle_t handle, uint8_t address)
     if ( !(address & HDLC_E_BIT) )
     {
         // We do not support extended address format for now.
-        return 0xFF;
+        return HDLC_INVALID_PEER_INDEX;
     }
     // If our station is SECONDARY station, then we must check that the frame is for us
     if ( __is_secondary_station( handle ) || handle->mode == TINY_FD_MODE_ABM )
     {
         // Check that the frame is for us
-        return address == handle->addr ? 0 : 0xFF;
+        return address == handle->addr ? 0 : HDLC_INVALID_PEER_INDEX;
     }
     // This code works only for primary station in NRM mode
     for ( uint8_t peer = 0; peer < handle->peers_count; peer++ )
@@ -80,7 +80,7 @@ static uint8_t __address_field_to_peer(tiny_fd_handle_t handle, uint8_t address)
         }
     }
     // Return "NOT found peer"
-    return 0xFF;
+    return HDLC_INVALID_PEER_INDEX;
 }
 
 ///////////////////////////////////////////////////////////////////////////////

@@ -55,7 +55,7 @@ static uint8_t __switch_to_next_peer(tiny_fd_handle_t handle)
         {
             handle->next_peer = 0;
         }
-        if ( handle->peers[ handle->next_peer ].addr != 0xFF )
+        if ( handle->peers[ handle->next_peer ].addr != HDLC_INVALID_PEER_INDEX )
         {
             break;
         }
@@ -169,7 +169,7 @@ static void on_frame_read(void *user_data, uint8_t *data, int len)
     }
     __tiny_fd_log_frame(handle, TINY_FD_FRAME_DIRECTION_IN, data, len);
     uint8_t peer = __address_field_to_peer( handle, ((uint8_t *)data)[0] );
-    if ( peer == 0xFF )
+    if ( peer == HDLC_INVALID_PEER_INDEX )
     {
         // it seems that the frame is not for us. Just exit
         return;
@@ -226,7 +226,7 @@ static void on_frame_send(void *user_data, const uint8_t *data, int len)
     tiny_fd_handle_t handle = (tiny_fd_handle_t)user_data;
     uint8_t peer = __address_field_to_peer( handle, ((const uint8_t *)data)[0] );
     uint8_t control = ((uint8_t *)data)[1];
-    if ( peer == 0xFF )
+    if ( peer == HDLC_INVALID_PEER_INDEX )
     {
         // Do nothing for now, but this should never happen
         return;
@@ -259,8 +259,8 @@ static void on_frame_send(void *user_data, const uint8_t *data, int len)
         {
             __switch_to_next_peer( handle );
         }
-        flags |= FD_EVENT_HAS_MARKER;
         LOG(TINY_LOG_INFO, "[%p] [RELEASED MARKER]\n", handle);
+        flags |= FD_EVENT_HAS_MARKER;
     }
     tiny_events_clear( &handle->events, flags );
     tiny_mutex_unlock(&handle->frames.mutex);
@@ -413,7 +413,7 @@ int tiny_fd_init(tiny_fd_handle_t *handle, tiny_fd_init_t *init)
         }
         else
         {
-            protocol->peers[peer].addr = 0xFF;
+            protocol->peers[peer].addr = HDLC_INVALID_PEER_INDEX;
         }
         protocol->peers[peer].state = TINY_FD_STATE_DISCONNECTED;
         tiny_events_create(&protocol->peers[peer].events);
@@ -643,7 +643,7 @@ int tiny_fd_get_tx_data(tiny_fd_handle_t handle, void *data, int len, uint32_t t
         }
         else
         {
-            if ( handle->peers[peer].addr == 0xFF )
+            if ( handle->peers[peer].addr == HDLC_INVALID_PEER_INDEX )
             {
                 result = TINY_ERR_UNKNOWN_PEER;
                 break;
@@ -753,7 +753,7 @@ int tiny_fd_send_packet_to(tiny_fd_handle_t handle, uint8_t address, const void 
         address = handle->addr;
     }
     peer = __address_field_to_peer( handle, (address << 2) | HDLC_E_BIT );
-    if ( peer == 0xFF )
+    if ( peer == HDLC_INVALID_PEER_INDEX )
     {
         LOG(TINY_LOG_ERR, "[%p] PUT frame error: Unknown peer\n", handle);
         return TINY_ERR_UNKNOWN_PEER;
@@ -962,7 +962,7 @@ int tiny_fd_register_peer(tiny_fd_handle_t handle, uint8_t address)
         return TINY_ERR_FAILED;
     }
     tiny_mutex_lock(&handle->frames.mutex);
-    if ( __address_field_to_peer( handle, address ) != 0xFF )
+    if ( __address_field_to_peer( handle, address ) != HDLC_INVALID_PEER_INDEX )
     {
         tiny_mutex_unlock(&handle->frames.mutex);
         return TINY_ERR_FAILED;
@@ -970,7 +970,7 @@ int tiny_fd_register_peer(tiny_fd_handle_t handle, uint8_t address)
     // Attempt to register new secondary peer station
     for ( uint8_t peer = 0; peer < handle->peers_count; peer++ )
     {
-        if ( handle->peers[peer].addr == 0xFF )
+        if ( handle->peers[peer].addr == HDLC_INVALID_PEER_INDEX )
         {
             handle->peers[peer].addr = address;
             handle->peers[peer].last_received_frame_ts = (uint32_t)(tiny_millis() - handle->retry_timeout);

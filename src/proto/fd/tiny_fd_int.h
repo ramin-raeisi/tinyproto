@@ -137,7 +137,7 @@ extern "C"
         uint8_t peers_count;
         /// Information on all peers stations
         tiny_fd_peer_info_t *peers;
-        /// Local address: 0x00 or 0xFF for primary devices
+        /// Local address: 0x00 or for primary devices
         uint8_t addr;
         /// Next peer to process
         uint8_t next_peer;

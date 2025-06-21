@@ -89,5 +89,6 @@ enum
 // If this bit is clear, the address field is 2 bytes long
 #define HDLC_E_BIT 0x01
 #define HDLC_PRIMARY_ADDR (TINY_FD_PRIMARY_ADDR << 2)
+#define HDLC_INVALID_PEER_INDEX 0xFF
 
 static const uint8_t seq_bits_mask = 0x07;
