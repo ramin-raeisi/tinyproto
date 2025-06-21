@@ -48,7 +48,7 @@ static FILE *get_log_file(uintptr_t id)
             return NULL;
         }
         // Num# - is frame number, Exp# - is expected frame number from remote peer
-        fprintf(log_file, " time ms, DIR, FR, Type, Num#, Exp#\n");
+        fprintf(log_file, " time ms, DIR, ADDR, FR, Type, Num#, Exp#\n");
     }
     return log_file;
 }

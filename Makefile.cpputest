@@ -18,7 +18,8 @@ OBJ_UNIT_TEST = \
         unittest/packet_tests.o \
         unittest/hdlc_tests.o \
         unittest/light_tests.o \
-        unittest/tiny_fd_tests.o \
+        unittest/tiny_fd_abm_tests.o \
+        unittest/tiny_fd_nrm_tests.o \
         unittest/fd_tests.o \
         unittest/fd_multidrop_tests.o \
 

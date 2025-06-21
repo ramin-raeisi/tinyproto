@@ -1,5 +1,5 @@
 /*
-    Copyright 2019-2024 (C) Alexey Dynda
+    Copyright 2019-2025 (C) Alexey Dynda
 
     This file is part of Tiny Protocol Library.
 
@@ -36,7 +36,7 @@
 
 #include "proto/fd/tiny_fd.h"
 
-TEST_GROUP(TINY_FD)
+TEST_GROUP(TINY_FD_ABM)
 {
     void setup()
     {
@@ -73,21 +73,21 @@ TEST_GROUP(TINY_FD)
     static void __onConnect(void *udata, uint8_t address, bool connected)
     {
         // get the instance of the test class
-        auto *self = static_cast<TEST_GROUP_CppUTestGroupTINY_FD *>(udata);
+        auto *self = static_cast<TEST_GROUP_CppUTestGroupTINY_FD_ABM *>(udata);
         self->onConnect(address, connected);
     }
 
     static void onRead(void *udata, uint8_t address, uint8_t *buf, int len)
     {
         // get the instance of the test class
-        auto *self = static_cast<TEST_GROUP_CppUTestGroupTINY_FD *>(udata);
+        auto *self = static_cast<TEST_GROUP_CppUTestGroupTINY_FD_ABM *>(udata);
         self->onRead(address, buf, len);
     }
 
     static void onSend(void *udata, uint8_t address, const uint8_t *buf, int len)
     {
         // get the instance of the test class
-        auto *self = static_cast<TEST_GROUP_CppUTestGroupTINY_FD *>(udata);
+        auto *self = static_cast<TEST_GROUP_CppUTestGroupTINY_FD_ABM *>(udata);
         self->onSend(address, buf, len);
     }
 
@@ -96,7 +96,7 @@ TEST_GROUP(TINY_FD)
                         uint8_t ns, uint8_t nr, const uint8_t *data, int len)
     {
         // get the instance of the test class
-        auto *self = static_cast<TEST_GROUP_CppUTestGroupTINY_FD *>(udata);
+        auto *self = static_cast<TEST_GROUP_CppUTestGroupTINY_FD_ABM *>(udata);
         if (!self->logFrameFunc) {
             return; // No logging function set
         }
@@ -147,7 +147,7 @@ TEST_GROUP(TINY_FD)
 };
 
 
-TEST(TINY_FD, ABM_ConnectDisconnectResponse)
+TEST(TINY_FD_ABM, ABM_ConnectDisconnectResponse)
 {
     // For command requests CR bit must be set, that is why address is 0x03
     auto read_result = tiny_fd_on_rx_data(handle, (uint8_t *)"\x7E\x03\x2F\x7E", 4); // SABM frame
@@ -174,7 +174,7 @@ TEST(TINY_FD, ABM_ConnectDisconnectResponse)
     CHECK(!connected); // Connection should be disconnected 
 }
 
-TEST(TINY_FD, ABM_DisconnectResponseWhenNotConnected)
+TEST(TINY_FD_ABM, ABM_DisconnectResponseWhenNotConnected)
 {
     connected = true; // this flag should not be changed if not connected
     auto read_result = tiny_fd_on_rx_data(handle, (uint8_t *)"\x7E\x03\x43\x7E", 4); // DISC frame
@@ -190,7 +190,7 @@ TEST(TINY_FD, ABM_DisconnectResponseWhenNotConnected)
     CHECK(connected); // Connection should not be changed
 }
 
-TEST(TINY_FD, ABM_RecieveTwoConsequentIFrames)
+TEST(TINY_FD_ABM, ABM_RecieveTwoConsequentIFrames)
 {
     establishConnection();
     // Now we can send I-frames
@@ -198,7 +198,8 @@ TEST(TINY_FD, ABM_RecieveTwoConsequentIFrames)
     CHECK_EQUAL(TINY_SUCCESS, read_result);
     read_result = tiny_fd_on_rx_data(handle, (uint8_t *)"\x7E\x03\x02\x22\x7E", 5); // I-frame with data
     CHECK_EQUAL(TINY_SUCCESS, read_result);
-    auto len = tiny_fd_get_tx_data(handle, outBuffer.data(), outBuffer.size(), 100);
+    int len = tiny_fd_get_tx_data(handle, outBuffer.data(), outBuffer.size(), 0);
+    len += tiny_fd_get_tx_data(handle, outBuffer.data() + len, outBuffer.size() - len, 100);
     CHECK_EQUAL(8, len);
     // Check RR frame
     CHECK_EQUAL(0x7E, outBuffer[0]); // Flag
@@ -213,7 +214,7 @@ TEST(TINY_FD, ABM_RecieveTwoConsequentIFrames)
     // Now we can send I-frames again
 }
 
-TEST(TINY_FD, ABM_RecieveOutOfOrderIFrames)
+TEST(TINY_FD_ABM, ABM_RecieveOutOfOrderIFrames)
 {
     establishConnection();
     // Now we can send I-frames
@@ -221,7 +222,9 @@ TEST(TINY_FD, ABM_RecieveOutOfOrderIFrames)
     CHECK_EQUAL(TINY_SUCCESS, read_result);
     read_result = tiny_fd_on_rx_data(handle, (uint8_t *)"\x7E\x03\x04\x22\x7E", 5); // I-frame out of order
     CHECK_EQUAL(TINY_SUCCESS, read_result);
-    auto len = tiny_fd_get_tx_data(handle, outBuffer.data(), outBuffer.size(), 100);
+    // Sometimes TX operation can be split into multiple calls,
+    int len = tiny_fd_get_tx_data(handle, outBuffer.data(), outBuffer.size(), 0);
+    len += tiny_fd_get_tx_data(handle, outBuffer.data() + len, outBuffer.size() - len, 100);
     CHECK_EQUAL(8, len);
     // Check RR frame
     CHECK_EQUAL(0x7E, outBuffer[0]); // Flag
@@ -235,7 +238,7 @@ TEST(TINY_FD, ABM_RecieveOutOfOrderIFrames)
     CHECK_EQUAL(0x7E, outBuffer[7]); // Flag
 }
 
-TEST(TINY_FD, ABM_SendSABMOnIFrameIfDisconnected)
+TEST(TINY_FD_ABM, ABM_SendSABMOnIFrameIfDisconnected)
 {
     // If we are disconnected, we should send SABM frame on I-frame
     auto read_result = tiny_fd_on_rx_data(handle, (uint8_t *)"\x7E\x03\x00\x11\x7E", 5); // I-frame in order
@@ -249,7 +252,7 @@ TEST(TINY_FD, ABM_SendSABMOnIFrameIfDisconnected)
     CHECK_EQUAL(0x7E, outBuffer[3]); // Flag
 }
 
-TEST(TINY_FD, ABM_RunRxAPIVerification)
+TEST(TINY_FD_ABM, ABM_RunRxAPIVerification)
 {
     // For command requests CR bit must be set, that is why address is 0x03
     auto read_result = tiny_fd_run_rx(handle, [](void *user_data, void *buf, int len) -> int {
@@ -268,7 +271,7 @@ TEST(TINY_FD, ABM_RunRxAPIVerification)
     CHECK_EQUAL(0x7E, outBuffer[3]); // Flag
 }
 
-TEST(TINY_FD, ABM_RunTxAPIVerification)
+TEST(TINY_FD_ABM, ABM_RunTxAPIVerification)
 {
     // For command requests CR bit must be set, that is why address is 0x03
     auto read_result = tiny_fd_on_rx_data(handle, (uint8_t *)"\x7E\x03\x2F\x7E", 4); // SABM frame
@@ -284,7 +287,7 @@ TEST(TINY_FD, ABM_RunTxAPIVerification)
     CHECK_EQUAL(TINY_SUCCESS, len);
 }
 
-TEST(TINY_FD, ABM_CheckMtuAPI)
+TEST(TINY_FD_ABM, ABM_CheckMtuAPI)
 {
     // Check MTU API
     int mtu = tiny_fd_get_mtu(handle);
@@ -292,7 +295,7 @@ TEST(TINY_FD, ABM_CheckMtuAPI)
     CHECK_EQUAL(33, mtu); // Assuming the MTU is 34 bytes according to protocol test configuration
 }
 
-TEST(TINY_FD, ABM_CheckLoggerFunction)
+TEST(TINY_FD_ABM, ABM_CheckLoggerFunction)
 {
     int counter = 0;
     // Check logger function
@@ -348,7 +351,7 @@ TEST(TINY_FD, ABM_CheckLoggerFunction)
     CHECK_EQUAL(3, counter); // We should have logged 3 frames now
 }
 
-TEST(TINY_FD, ABM_CheckMtuAndSendSplit)
+TEST(TINY_FD_ABM, ABM_CheckMtuAndSendSplit)
 {
     // Check MTU reinitialization
     reinitializeWithMtu(2); // Set new MTU
@@ -359,7 +362,10 @@ TEST(TINY_FD, ABM_CheckMtuAndSendSplit)
     // Check that 5-byte frame is split into 3 frames of 2 bytes each
     int result = tiny_fd_send_to(handle, TINY_FD_PRIMARY_ADDR, (const void *)"\x01\x02\x03\x04\x05", 5, 1000);
     CHECK_EQUAL(5, result); // We should have sent 5 bytes
-    int len = tiny_fd_get_tx_data(handle, outBuffer.data(), outBuffer.size(), 100);
+    // Sometimes TX operation can be split into multiple calls,
+    int len = tiny_fd_get_tx_data(handle, outBuffer.data(), outBuffer.size(), 0);
+    len += tiny_fd_get_tx_data(handle, outBuffer.data() + len, outBuffer.size() - len, 0);
+    len += tiny_fd_get_tx_data(handle, outBuffer.data() + len, outBuffer.size() - len, 100);
     CHECK_EQUAL(17, len); // We should have 3 I-frames of 2 bytes, 2 bytes and 1 byte
     // Check first I-frame
     CHECK_EQUAL(0x7E, outBuffer[0]); // Flag
@@ -386,7 +392,7 @@ TEST(TINY_FD, ABM_CheckMtuAndSendSplit)
     CHECK_EQUAL(TINY_ERR_DATA_TOO_LARGE, result); // Should return error for frame larger than MTU
 }
 
-TEST(TINY_FD, ABM_CheckReceiveReadyWithCommandBitSet)
+TEST(TINY_FD_ABM, ABM_CheckReceiveReadyWithCommandBitSet)
 {
     // On Receive Ready with command bit set, and if there is no data to send,
     // we should send RR frame with command bit cleared
@@ -403,7 +409,7 @@ TEST(TINY_FD, ABM_CheckReceiveReadyWithCommandBitSet)
     CHECK_EQUAL(0x7E, outBuffer[3]); // Flag
 }
 
-TEST(TINY_FD, ABM_CheckReceiveReadyWithCommandBitCleared)
+TEST(TINY_FD_ABM, ABM_CheckReceiveReadyWithCommandBitCleared)
 {
     // On Receive Ready with command bit set, and if there is no data to send,
     // we should send RR frame with command bit cleared

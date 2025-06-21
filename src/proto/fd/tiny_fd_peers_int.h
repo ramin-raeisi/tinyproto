@@ -89,3 +89,26 @@ static uint8_t __peer_to_address_field(tiny_fd_handle_t handle, uint8_t peer)
 {
     return handle->peers[peer].addr & (~HDLC_CR_BIT);
 }
+
+///////////////////////////////////////////////////////////////////////////////
+
+static uint8_t __switch_to_next_peer(tiny_fd_handle_t handle)
+{
+    const uint8_t start_peer = handle->next_peer;
+    do
+    {
+        if ( ++handle->next_peer >= handle->peers_count )
+        {
+            handle->next_peer = 0;
+        }
+        if ( handle->peers[ handle->next_peer ].addr != HDLC_INVALID_PEER_INDEX )
+        {
+            break;
+        }
+    } while ( start_peer != handle->next_peer );
+    LOG(TINY_LOG_INFO, "[%p] Switching to peer [%02X]\n", handle, handle->next_peer);
+    return start_peer != handle->next_peer;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+

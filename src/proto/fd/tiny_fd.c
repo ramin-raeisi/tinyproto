@@ -46,26 +46,6 @@ static void on_frame_send(void *user_data, const uint8_t *data, int len);
 // Helper functions
 ///////////////////////////////////////////////////////////////////////////////
 
-static uint8_t __switch_to_next_peer(tiny_fd_handle_t handle)
-{
-    const uint8_t start_peer = handle->next_peer;
-    do
-    {
-        if ( ++handle->next_peer >= handle->peers_count )
-        {
-            handle->next_peer = 0;
-        }
-        if ( handle->peers[ handle->next_peer ].addr != HDLC_INVALID_PEER_INDEX )
-        {
-            break;
-        }
-    } while ( start_peer != handle->next_peer );
-    LOG(TINY_LOG_INFO, "[%p] Switching to peer [%02X]\n", handle, handle->next_peer);
-    return start_peer != handle->next_peer;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-
 #if 0
 static inline uint8_t __number_of_awaiting_tx_i_frames(tiny_fd_handle_t handle, uint8_t peer)
 {
@@ -208,15 +188,24 @@ static void on_frame_read(void *user_data, uint8_t *data, int len)
     {
         LOG(TINY_LOG_WRN, "[%p] Unknown hdlc frame received\n", handle);
     }
-    if ( control & HDLC_P_BIT )
+    // Check that if we are in NRM mode then we have something to send
+    if ( handle->mode == TINY_FD_MODE_NRM )
     {
-        // Check that if we are in NRM mode then we have something to send
-        if ( handle->mode == TINY_FD_MODE_NRM )
+        if ( control & ( HDLC_P_BIT | HDLC_F_BIT ) )
         {
             LOG(TINY_LOG_INFO, "[%p] [CAPTURED MARKER]\n", handle);
+            // Cool! Now we have marker again, and we can send
+            tiny_events_set( &handle->events, FD_EVENT_HAS_MARKER );
+            // For primary station
+            //    1. Switch to the next peer
+            //    2. If no I-frames to send, then put RR S-frame to the queue with poll bit set
+            //    3. If I-frames to send, then send I-frames (1 or multiple)
+            //       3.1. The last one should have final bit set
+            // For secondary station
+            //    1. If no I-frames to send, then put RR S-frame to the queue with poll bit set
+            //    2. If I-frames to send, then send I-frames (1 or multiple)
+            //       2.1. The last one should have final bit set
         }
-        // Cool! Now we have marker again, and we can send
-        tiny_events_set( &handle->events, FD_EVENT_HAS_MARKER );
     }
     tiny_mutex_unlock(&handle->frames.mutex);
 }
@@ -247,23 +236,28 @@ static void on_frame_send(void *user_data, const uint8_t *data, int len)
         tiny_fd_queue_free_by_header( &handle->frames.s_queue, data );
     }
     // Clear send flag and clear marker if final was transferred. For ABM mode the marker is never cleared
-    uint8_t flags = FD_EVENT_TX_SENDING;
-    if ( (control & HDLC_F_BIT) && handle->mode == TINY_FD_MODE_NRM )
+    uint8_t flags_to_clear = FD_EVENT_TX_SENDING;
+    if ( handle->mode == TINY_FD_MODE_NRM )
     {
         // Let's talk to the next station if we are primary
         // Of course, we could switch to the next peer upon receving response
         // from the peer we provided the marker to... But what? What if
         // remote peer never responds to us. So, having switch procedure
         // in this callback simplifies things
-        if ( __is_primary_station( handle ) )
+        if ( __is_primary_station( handle ) && (control & HDLC_P_BIT) )
         {
             __switch_to_next_peer( handle );
+            LOG(TINY_LOG_INFO, "[%p] [RELEASED MARKER]\n", handle);
+            flags_to_clear |= FD_EVENT_HAS_MARKER;
         }
-        LOG(TINY_LOG_INFO, "[%p] [RELEASED MARKER]\n", handle);
-        flags |= FD_EVENT_HAS_MARKER;
+        else if ( !__is_primary_station( handle ) && (control & HDLC_F_BIT) )
+        {
+            LOG(TINY_LOG_INFO, "[%p] [RELEASED MARKER]\n", handle);
+            flags_to_clear |= FD_EVENT_HAS_MARKER;
+        }
     }
-    tiny_events_clear( &handle->events, flags );
-    tiny_mutex_unlock(&handle->frames.mutex);
+    tiny_events_clear( &handle->events, flags_to_clear );
+    tiny_mutex_unlock( &handle->frames.mutex );
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -421,6 +415,7 @@ int tiny_fd_init(tiny_fd_handle_t *handle, tiny_fd_init_t *init)
 
     tiny_mutex_create(&protocol->frames.mutex);
     tiny_events_create(&protocol->events);
+    // Primary station has marker by default
     tiny_events_set( &protocol->events, FD_EVENT_QUEUE_HAS_FREE_SLOTS |
                                         (__is_primary_station( protocol ) ? FD_EVENT_HAS_MARKER : 0) );
     *handle = protocol;
@@ -629,7 +624,12 @@ static void tiny_fd_disconnected_check_idle_timeout(tiny_fd_handle_t handle, uin
 
 int tiny_fd_get_tx_data(tiny_fd_handle_t handle, void *data, int len, uint32_t timeout)
 {
+    // TODO: !!!!!
+    // We cannot generate data forever, and we should return result as soon as possible
+    // Now this is not true for NRM mode, as we can generate data forever until 
+    // passed buffer is filled up.
     bool repeat = true;
+    bool wait_point_passed = false;
     int result = 0;
     // TODO: Check for correct mutex usage here. Some fields are not protected
     const uint8_t peer = handle->next_peer;
@@ -656,6 +656,11 @@ int tiny_fd_get_tx_data(tiny_fd_handle_t handle, void *data, int len, uint32_t t
             {
                 tiny_fd_disconnected_check_idle_timeout(handle, peer);
             }
+            // TODO: This point cannot be reached twice!!!!
+            if (wait_point_passed) {
+                break;
+            }
+            wait_point_passed = true;
             // Since no send operation is in progress, check if we have something to send
             // Check if the station has marker to send FIRST (That means, we are allowed to send anything still)
             if ( tiny_events_wait(&handle->events, FD_EVENT_HAS_MARKER, EVENT_BITS_LEAVE, timeout ) )
@@ -689,7 +694,7 @@ int tiny_fd_get_tx_data(tiny_fd_handle_t handle, void *data, int len, uint32_t t
             {
                 if ( __time_passed_since_last_marker_seen(handle) >= handle->retry_timeout )
                 {
-                    // Return marker back as remote station not responding
+                    // Return marker back to primary station as remote station not responding
                     LOG(TINY_LOG_CRIT, "[%p] RETURN MARKER BACK\n", handle );
                     tiny_events_set( &handle->events, FD_EVENT_HAS_MARKER );
                 }
@@ -699,7 +704,9 @@ int tiny_fd_get_tx_data(tiny_fd_handle_t handle, void *data, int len, uint32_t t
                 }
             }
         }
-        result += generated_data;
+        if (result >= 0) {
+            result += generated_data;
+        }
         if ( !generated_data )
         {
             if ( !repeat )
@@ -964,6 +971,7 @@ int tiny_fd_register_peer(tiny_fd_handle_t handle, uint8_t address)
     tiny_mutex_lock(&handle->frames.mutex);
     if ( __address_field_to_peer( handle, address ) != HDLC_INVALID_PEER_INDEX )
     {
+        // Peer already registered
         tiny_mutex_unlock(&handle->frames.mutex);
         return TINY_ERR_FAILED;
     }

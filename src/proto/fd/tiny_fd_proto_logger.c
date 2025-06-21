@@ -153,6 +153,7 @@ void __tiny_fd_log_frame(tiny_fd_handle_t handle,
     }
     FILE_LOG((uintptr_t)handle,
         direction == TINY_FD_FRAME_DIRECTION_IN ? " IN" : "OUT",
+        data[0],
         __get_frame_type_str(data[1]),
         __get_frame_subtype_str(data[1]),
         __get_frame_sequence(data[1]),

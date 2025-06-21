@@ -38,11 +38,12 @@
 #define LOG(lvl, fmt, ...) TINY_LOG(lvl, fmt, ##__VA_ARGS__)
 // id - unique id of the protocol instance
 // direction - direction of the log, can be "OUT" or "IN"
+// addr - address of the peer, can be primary or secondary station address
 // frame type - 'S', 'I' or 'U'
 // subtype - subtype of the frame, can be "RR", "REJ", "UA", etc.
 // ns - N(S) sequence number, nr - N(R) sequence number
-#define FILE_LOG(id, direction, frame, subtype, ns, nr) \
-                TINY_FILE_LOG(id, "%s,  %c, %s,    %d,   %d\n", direction, frame, subtype, ns, nr)
+#define FILE_LOG(id, direction, addr, frame, subtype, ns, nr) \
+                TINY_FILE_LOG(id, "%s,   %02X,  %c, %s,    %d,   %d\n", direction, addr, frame, subtype, ns, nr)
 #else
 #define LOG(...)
 #define FILE_LOG(...)
@@ -50,10 +51,34 @@
 
 enum
 {
+    /**
+     * FD_EVENT_TX_SENDING indicates that currently frame is being sent.
+     * Higer layer will not try to send new frames until this event is cleared.
+     */
     FD_EVENT_TX_SENDING = 0x01,            // Global event
+
+    /**
+     * FD_EVENT_TX_DATA_AVAILABLE indicates that there is data available for transmission.
+     * This event is set when there is data in the TX queue.
+     */
     FD_EVENT_TX_DATA_AVAILABLE = 0x02,     // Global event
+
+    /**
+     * FD_EVENT_QUEUE_HAS_FREE_SLOTS indicates that there are free slots in the TX queue.
+     * This event is set when there is at least one free slot in the TX queue.
+     * It is used to notify higher layers that they can send more data.
+     */
     FD_EVENT_QUEUE_HAS_FREE_SLOTS = 0x04,  // Global event
+
+    /**
+     * FD_EVENT_CAN_ACCEPT_I_FRAMES indicates that the protocol can accept new I-frames for sending.
+     * This event is set when the protocol is ready to accept new I-frames.
+     */
     FD_EVENT_CAN_ACCEPT_I_FRAMES = 0x08,   // Local event
+
+    /**
+     * 
+     */
     FD_EVENT_HAS_MARKER          = 0x10,   // Global event
 };
 
