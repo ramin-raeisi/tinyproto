@@ -59,8 +59,6 @@ TEST_GROUP(TINY_FD_NRM)
         init.crc_type = HDLC_CRC_OFF;
         auto result = tiny_fd_init(&handle, &init);
         CHECK_EQUAL(TINY_SUCCESS, result);
-        tiny_fd_register_peer(handle, 0x01);
-        tiny_fd_register_peer(handle, 0x02);
     }
 
     void teardown()
@@ -114,19 +112,29 @@ TEST_GROUP(TINY_FD_NRM)
                        tiny_fd_frame_type_t, tiny_fd_frame_subtype_t, uint8_t, uint8_t,
                        const uint8_t *, int)> logFrameFunc = nullptr;
 
-    void establishConnection()
+    void establishConnection(uint8_t addr)
     {
-        // For command requests CR bit must be set, that is why address is 0x03
-        auto read_result = tiny_fd_on_rx_data(handle, (uint8_t *)"\x7E\x03\x2F\x7E", 4); // SABM frame
+        // We use emulatation of SNRM frame coming from secondary station
+        // We force primary station to receive a token from secondary station: 0x3F
+        // This will allow primary station to respond immediately with UA frame
+        // FD protocol engine must be updated to handle U and I frame separately for each peer
+        const uint8_t snrm_frame[] = {0x7E, (uint8_t)(0x01 | (addr << 2)), 0x3F, 0x7E}; // SNRM frame
+        auto read_result = tiny_fd_on_rx_data(handle, snrm_frame, sizeof(snrm_frame));
         CHECK_EQUAL(TINY_SUCCESS, read_result);
-        auto len = tiny_fd_get_tx_data(handle, outBuffer.data(), outBuffer.size(), 100);
-        CHECK(connected); // Connection should be established
+        int len = tiny_fd_get_tx_data(handle, outBuffer.data(), outBuffer.size(), 100);
         CHECK_EQUAL(4, len);
+        // Check UA frame
+        CHECK_EQUAL(0x7E, outBuffer[0]); // Flag
+        CHECK_EQUAL(0x01 | (addr << 2), outBuffer[1]); // Address field
+        CHECK_EQUAL(0x73, outBuffer[2]); // UA packet
+        CHECK_EQUAL(0x7E, outBuffer[3]); // Flag
     }
 };
 
 TEST(TINY_FD_NRM, NRM_ConnectionInitiatedFromPrimary)
 {
+    tiny_fd_register_peer(handle, 0x01);
+    tiny_fd_register_peer(handle, 0x02);
     int len = tiny_fd_get_tx_data(handle, outBuffer.data(), outBuffer.size(), 100);
     CHECK_EQUAL(4, len);
     // Check SNRM frame
@@ -154,8 +162,10 @@ TEST(TINY_FD_NRM, NRM_ConnectionInitiatedFromPrimary)
 
 TEST(TINY_FD_NRM, NRM_ConnectInitiatedFromSecondary)
 {
+    tiny_fd_register_peer(handle, 0x01);
+    tiny_fd_register_peer(handle, 0x02);
     // For command requests CR bit must be set, that is why address is 0x03
-    auto read_result = tiny_fd_on_rx_data(handle, (uint8_t *)"\x7E\x07\x2F\x7E", 4); // SABM frame
+    auto read_result = tiny_fd_on_rx_data(handle, (uint8_t *)"\x7E\x07\x2F\x7E", 4); // SNRM frame
     CHECK_EQUAL(TINY_SUCCESS, read_result);
     int len = tiny_fd_get_tx_data(handle, outBuffer.data(), outBuffer.size(), 100);
     CHECK_EQUAL(4, len);
@@ -165,7 +175,25 @@ TEST(TINY_FD_NRM, NRM_ConnectInitiatedFromSecondary)
     CHECK_EQUAL(0x05, outBuffer[1]); // Address field
     CHECK_EQUAL(0x73, outBuffer[2]); // UA packet
     CHECK_EQUAL(0x7E, outBuffer[3]); // Flag
-    CHECK(connected); // Connection should be established
+    CHECK_EQUAL(1, connected); // Connection should be established
+}
+
+TEST(TINY_FD_NRM, NRM_ConnectionWhenNoSecondaryStationIsRegistered)
+{
+    int len = tiny_fd_get_tx_data(handle, outBuffer.data(), outBuffer.size(), 100);
+    CHECK_EQUAL(TINY_ERR_UNKNOWN_PEER, len);
+}
+
+TEST(TINY_FD_NRM, NRM_CheckUnitTestConnectionLogic)
+{
+    // This test is to check that connection logic works correctly
+    // when we are in NRM mode and no secondary station is registered.
+    tiny_fd_register_peer(handle, 0x01);
+    tiny_fd_register_peer(handle, 0x02);
+    establishConnection(0x01);
+    CHECK_EQUAL(1, connected); // Connection should be established
+    establishConnection(0x02);
+    CHECK_EQUAL(2, connected); // Connection should be established
 }
 
 #if 0
