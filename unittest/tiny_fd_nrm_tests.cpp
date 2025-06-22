@@ -196,6 +196,24 @@ TEST(TINY_FD_NRM, NRM_CheckUnitTestConnectionLogic)
     CHECK_EQUAL(2, connected); // Connection should be established
 }
 
+TEST(TINY_FD_NRM, NRM_SecondaryDisconnection)
+{
+    tiny_fd_register_peer(handle, 0x01);
+    establishConnection(0x01);
+    CHECK_EQUAL(1, connected); // Connection should be established
+    auto read_result = tiny_fd_on_rx_data(handle, (uint8_t *)"\x7E\x07\x53\x7E", 4); // DISC frame
+    CHECK_EQUAL(TINY_SUCCESS, read_result);
+    int len = tiny_fd_get_tx_data(handle, outBuffer.data(), outBuffer.size(), 100);
+    CHECK_EQUAL(4, len);
+    // Check UA frame   
+    // UA frame should be: 0x7E 0x03 0x00 0x7E
+    CHECK_EQUAL(0x7E, outBuffer[0]); // Flag
+    CHECK_EQUAL(0x05, outBuffer[1]); // address field - CR bit must be cleared
+    CHECK_EQUAL(0x73, outBuffer[2]); // UA packet
+    CHECK_EQUAL(0x7E, outBuffer[3]); // Flag
+    CHECK_EQUAL(0, connected); // Connection should be closed
+}
+
 #if 0
 TEST(TINY_FD_NRM, ABM_DisconnectResponseWhenNotConnected)
 {
