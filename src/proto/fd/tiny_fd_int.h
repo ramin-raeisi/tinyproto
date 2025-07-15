@@ -41,7 +41,7 @@ extern "C"
 #include "proto/hdlc/low_level/hdlc.h"
 #include "proto/hdlc/low_level/hdlc_int.h"
 #include "hal/tiny_types.h"
-#include "tiny_fd_frames_int.h"
+#include "tiny_fd_frames_queue_int.h"
 
 #define FD_PEER_BUF_SIZE() ( sizeof(tiny_fd_peer_info_t) )
 

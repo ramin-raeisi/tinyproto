@@ -26,7 +26,7 @@
     For further information contact via email on github account.
 */
 
-#include "tiny_fd_frames_int.h"
+#include "tiny_fd_frames_queue_int.h"
 #include "hal/tiny_debug.h"
 
 #include <string.h>
