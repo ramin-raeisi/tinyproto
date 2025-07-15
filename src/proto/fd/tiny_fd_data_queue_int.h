@@ -56,30 +56,10 @@ static inline uint32_t __time_passed_since_last_sent_i_frame(tiny_fd_handle_t ha
 
 ///////////////////////////////////////////////////////////////////////////////
 
-static bool __put_i_frame_to_tx_queue(tiny_fd_handle_t handle, uint8_t peer, const void *data, int len)
-{
-    tiny_fd_frame_info_t *slot = tiny_fd_queue_allocate( &handle->frames.i_queue, TINY_FD_QUEUE_I_FRAME, (const uint8_t *)data, len );
-    // Check if space is actually available
-    if ( slot != NULL )
-    {
-        LOG(TINY_LOG_DEB, "[%p] QUEUE I-PUT: [%02X] [%02X]\n", handle, slot->header.address, slot->header.control);
-        slot->header.address = __peer_to_address_field( handle, peer );
-        slot->header.control = handle->peers[peer].last_ns << 1;
-        handle->peers[peer].last_ns = (handle->peers[peer].last_ns + 1) & seq_bits_mask;
-        tiny_events_set(&handle->events, FD_EVENT_TX_DATA_AVAILABLE);
-        return true;
-    }
-    return false;
-}
+bool __can_accept_i_frames(tiny_fd_handle_t handle, uint8_t peer);
 
 ///////////////////////////////////////////////////////////////////////////////
 
-static bool __can_accept_i_frames(tiny_fd_handle_t handle, uint8_t peer)
-{
-    uint8_t next_last_ns = (handle->peers[peer].last_ns + 1) & seq_bits_mask;
-    bool can_accept = next_last_ns != handle->peers[peer].confirm_ns;
-    return can_accept;
-}
+bool __put_i_frame_to_tx_queue(tiny_fd_handle_t handle, uint8_t peer, const void *data, int len);
 
 ///////////////////////////////////////////////////////////////////////////////
-

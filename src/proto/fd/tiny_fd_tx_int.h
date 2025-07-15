@@ -29,38 +29,9 @@
 #pragma once
 
 #include "tiny_fd.h"
-#include "tiny_fd_int.h"
-#include "tiny_fd_defines_int.h"
-
-static uint8_t inline __is_primary_address(uint8_t address)
-{
-    address &= ~(HDLC_CR_BIT);
-    return address == ( HDLC_PRIMARY_ADDR | HDLC_E_BIT );
-}
+#include <stdint.h>
 
 ///////////////////////////////////////////////////////////////////////////////
 
-static uint8_t inline __is_primary_station(tiny_fd_handle_t handle)
-{
-    return __is_primary_address(handle->addr);
-}
-
-///////////////////////////////////////////////////////////////////////////////
-
-
-static uint8_t inline __is_secondary_station(tiny_fd_handle_t handle)
-{
-    return !__is_primary_station( handle );
-}
-
-///////////////////////////////////////////////////////////////////////////////
-
-static uint8_t inline __peer_to_address_field(tiny_fd_handle_t handle, uint8_t peer)
-{
-    return handle->peers[peer].addr & (~HDLC_CR_BIT);
-}
-
-///////////////////////////////////////////////////////////////////////////////
-
-uint8_t __address_field_to_peer(tiny_fd_handle_t handle, uint8_t address);
-uint8_t __switch_to_next_peer(tiny_fd_handle_t handle);
+void __confirm_sent_frames(tiny_fd_handle_t handle, uint8_t peer, uint8_t nr);
+void __resend_all_unconfirmed_frames(tiny_fd_handle_t handle, uint8_t peer, uint8_t control, uint8_t nr);
