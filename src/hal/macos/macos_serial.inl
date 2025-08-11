@@ -231,6 +231,10 @@ write_poll:
         }
         return ret;
     }
+    if ( fds.revents & (POLLHUP | POLLERR) )
+    {
+        return -1;
+    }
     if ( ret == 0 || !(fds.revents & (POLLOUT | POLLWRNORM)) )
     {
         return 0;
