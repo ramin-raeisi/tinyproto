@@ -97,10 +97,10 @@ void tiny_sleep_us(uint32_t us)
 
 uint32_t tiny_millis()
 {
-    return (uint32_t)(esp_timer_get_time() / 1000);
+    return (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
 }
 
 uint32_t tiny_micros()
 {
-    return (uint32_t)(esp_timer_get_time());
+    return (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS * 1000);
 }

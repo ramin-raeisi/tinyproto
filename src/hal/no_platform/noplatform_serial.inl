@@ -17,19 +17,6 @@
     along with Protocol Library.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <termios.h>
-#include <errno.h>
-#include <string.h>
-#include <linux/serial.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/ioctl.h>
-#include <fcntl.h>
-#include <poll.h>
-#include <time.h>
 
 void tiny_serial_close(tiny_serial_handle_t port)
 {

@@ -47,7 +47,7 @@
 #include "mingw32/mingw32_hal.inl"
 #elif defined(_WIN32)
 #include "win32/win32_hal.inl"
-#elif defined(CPU_S32K144HFT0VLLT)
+#elif defined(TINYPROTO_USE_FREERTOS)
 #include "freertos/freertos_hal.inl"
 #else
 #warning "Platform not supported. Multithread support is disabled"

@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 3.5)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(EXAMPLES "Build examples and tiny_loopback" OFF)
@@ -49,11 +49,6 @@ if (NOT DEFINED COMPONENT_DIR)
             LIBRARY DESTINATION lib
             RUNTIME DESTINATION bin
             INCLUDES DESTINATION include)
-
-    install(EXPORT tinyprotoTargets
-            FILE TinyProtoTargets.cmake
-            NAMESPACE TinyProto::
-            DESTINATION lib/cmake/tinyproto)
 
     include(CMakePackageConfigHelpers)
     configure_package_config_file(
