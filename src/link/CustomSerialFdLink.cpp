@@ -44,7 +44,7 @@ CustomSerialFdLink::~CustomSerialFdLink()
 bool CustomSerialFdLink::begin(on_frame_read_cb_t onReadCb, on_frame_send_cb_t onSendCb, void *udata)
 {
     int size = tiny_fd_buffer_size_by_mtu_ex(1, getMtu(), getWindow(), getCrc(), 3);
-    m_buffer = reinterpret_cast<uint8_t *>(malloc(size));
+    m_buffer = reinterpret_cast<uint8_t *>(pvPortMalloc(size));
     setBuffer(m_buffer, size);
     return ISerialLinkLayer<IFdLinkLayer, 32>::begin(onReadCb, onSendCb, udata);
 }
