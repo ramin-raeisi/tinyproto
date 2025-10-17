@@ -16,8 +16,10 @@ static constexpr int maximumBlockSize = 32;
 class CustomSerialFdLink: public ISerialLinkLayer<IFdLinkLayer, maximumBlockSize>
 {
 public:
-    explicit CustomSerialFdLink(ISource& rx, ISink& tx)
-        : ISerialLinkLayer<IFdLinkLayer, maximumBlockSize>("", nullptr, 0), _rx(rx), _tx(tx)
+    explicit CustomSerialFdLink(ISource &rx, ISink &tx)
+        : ISerialLinkLayer<IFdLinkLayer, maximumBlockSize>(const_cast<char *>(""), nullptr, 0)
+        , _rx(rx)
+        , _tx(tx)
     {
     }
 
@@ -33,8 +35,8 @@ public:
 
 private:
     uint8_t *m_buffer = nullptr;
-    ISource& _rx;
-    ISink& _tx;
+    ISource &_rx;
+    ISink &_tx;
 };
 
 } // namespace tinyproto
