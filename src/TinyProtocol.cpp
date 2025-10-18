@@ -112,11 +112,11 @@ bool Proto::send(const IPacket &packet, uint32_t timeout)
             m_link->flushTx();
             break;
         }
-        if ( !m_multithread )
-        {
-            m_link->runTx();
-            m_link->runRx();
-        }
+        // if ( !m_multithread )
+        // {
+        //     m_link->runTx();
+        //     m_link->runRx();
+        // }
     }
     return result;
 }
