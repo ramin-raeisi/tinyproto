@@ -273,6 +273,7 @@ public:
      */
     IPacket &operator=(const IPacket &source)
     {
+        m_len = source.m_len;
         m_size = source.m_size;
         m_buf = source.m_buf;
         return *this;
