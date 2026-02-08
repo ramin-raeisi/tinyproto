@@ -11,7 +11,7 @@
 namespace tinyproto
 {
 
-static constexpr int maximumBlockSize = 32;
+static constexpr int maximumBlockSize = 150;
 
 class CustomSerialFdLink: public ISerialLinkLayer<IFdLinkLayer, maximumBlockSize>
 {
