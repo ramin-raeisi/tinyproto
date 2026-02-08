@@ -69,11 +69,11 @@ public:
 
 #endif
 
-class SerialFdLink: public ISerialLinkLayer<IFdLinkLayer, 32>
+class SerialFdLink: public ISerialLinkLayer<IFdLinkLayer, 150>
 {
 public:
     explicit SerialFdLink(char *dev)
-        : ISerialLinkLayer<IFdLinkLayer, 32>(dev, nullptr, 0)
+        : ISerialLinkLayer<IFdLinkLayer, 150>(dev, nullptr, 0)
     {
     }
 
