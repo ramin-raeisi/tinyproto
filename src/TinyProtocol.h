@@ -59,7 +59,7 @@ namespace tinyproto
 class Proto
 {
 public:
-    explicit Proto(bool multithread = false);
+    explicit Proto(bool multithread = false, bool runTxRx = true);
 
     ~Proto();
 
@@ -96,6 +96,7 @@ private:
     void (*m_onRx)(Proto &, IPacket &) = nullptr;
     void (*m_onTx)(Proto &, IPacket &) = nullptr;
     bool m_multithread = false;
+    bool m_runTxRx = true;
     bool m_terminate = true;
     IPacket *m_pool = nullptr;
     IPacket *m_queue = nullptr;

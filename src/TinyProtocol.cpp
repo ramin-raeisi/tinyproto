@@ -36,19 +36,20 @@ enum
     PROTO_RX_MESSAGE = 1,
 };
 
-Proto::Proto(bool multithread)
-   : m_link(nullptr)
-   , m_multithread( multithread )
+Proto::Proto(bool multithread, bool runTxRx)
+    : m_link(nullptr)
+    , m_multithread(multithread)
+    , m_runTxRx(runTxRx)
 {
-    tiny_events_create( &m_events );
-    tiny_mutex_create( &m_mutex );
+    tiny_events_create(&m_events);
+    tiny_mutex_create(&m_mutex);
 }
 
 Proto::~Proto()
 {
     end();
-    tiny_mutex_destroy( &m_mutex );
-    tiny_events_destroy( &m_events );
+    tiny_mutex_destroy(&m_mutex);
+    tiny_events_destroy(&m_events);
 }
 
 void Proto::setLink(ILinkLayer &link)
@@ -68,12 +69,12 @@ bool Proto::begin()
     {
         timeout = 1000;
     }
-    else if ( !m_multithread)
+    else if ( !m_multithread )
     {
         timeout = 0;
     }
-    m_link->setTimeout( timeout );
-    if (!m_link->begin(onReadCb, onSendCb, this))
+    m_link->setTimeout(timeout);
+    if ( !m_link->begin(onReadCb, onSendCb, this) )
     {
         m_terminate = true;
         return false;
@@ -101,7 +102,7 @@ bool Proto::send(const IPacket &packet, uint32_t timeout)
     for ( ;; )
     {
         // Try to put message to outgoing queue
-        result = m_link->put( packet.m_buf, packet.m_len, m_multithread ? timeout : 0 );
+        result = m_link->put(packet.m_buf, packet.m_len, m_multithread ? timeout : 0);
         if ( result )
         {
             break;
@@ -112,11 +113,11 @@ bool Proto::send(const IPacket &packet, uint32_t timeout)
             m_link->flushTx();
             break;
         }
-        // if ( !m_multithread )
-        // {
-        //     m_link->runTx();
-        //     m_link->runRx();
-        // }
+        if ( !m_multithread && m_runTxRx )
+        {
+            m_link->runTx();
+            m_link->runRx();
+        }
     }
     return result;
 }
@@ -133,7 +134,6 @@ bool Proto::send(const IPacket &packet, uint32_t timeout)
     printf("[%p] %s counter %i \n", this, name, counter);
 }*/
 
-
 IPacket *Proto::read(uint32_t timeout)
 {
     IPacket *p = nullptr;
@@ -141,7 +141,7 @@ IPacket *Proto::read(uint32_t timeout)
     for ( ;; )
     {
         tiny_events_wait(&m_events, PROTO_RX_MESSAGE, EVENT_BITS_CLEAR, m_multithread ? timeout : 0);
-        tiny_mutex_lock( &m_mutex );
+        tiny_mutex_lock(&m_mutex);
         if ( m_queue != nullptr )
         {
             p = m_queue;
@@ -149,20 +149,20 @@ IPacket *Proto::read(uint32_t timeout)
             if ( m_queue != nullptr )
             {
                 m_queue->m_prev = nullptr;
-                tiny_events_set( &m_events, PROTO_RX_MESSAGE );
+                tiny_events_set(&m_events, PROTO_RX_MESSAGE);
             }
             else
             {
                 m_last = nullptr;
             }
-            //printCount( "read Pool", m_pool );
-            //printCount( "read Queue", m_queue );
-            tiny_mutex_unlock( &m_mutex );
+            // printCount( "read Pool", m_pool );
+            // printCount( "read Queue", m_queue );
+            tiny_mutex_unlock(&m_mutex);
             break;
         }
-        tiny_mutex_unlock( &m_mutex );
+        tiny_mutex_unlock(&m_mutex);
         // Always run Tx/Rx loop before checking timings, otherwise messages will be never received
-        if ( !m_multithread )
+        if ( !m_multithread && m_runTxRx )
         {
             m_link->runTx();
             m_link->runRx();
@@ -208,8 +208,8 @@ void Proto::onRead(uint8_t addr, uint8_t *buf, int len)
         m_onRx(*this, packet);
         return;
     }
-    tiny_mutex_lock( &m_mutex );
-    IPacket * p = m_pool;
+    tiny_mutex_lock(&m_mutex);
+    IPacket *p = m_pool;
     if ( p == nullptr )
     {
 #if CONFIG_TINYHAL_THREAD_SUPPORT == 1
@@ -247,15 +247,15 @@ void Proto::onRead(uint8_t addr, uint8_t *buf, int len)
         else
         {
             // TODO: Error if oversize
-            p->m_len = p->m_size < len ? p->m_size: len;
-            memcpy( p->m_buf, buf, p->m_len );
+            p->m_len = p->m_size < len ? p->m_size : len;
+            memcpy(p->m_buf, buf, p->m_len);
         }
         p->m_p = 0;
-        tiny_events_set( &m_events, PROTO_RX_MESSAGE );
+        tiny_events_set(&m_events, PROTO_RX_MESSAGE);
     }
-    //printCount( "new Pool", m_pool );
-    //printCount( "new Queue", m_queue );
-    tiny_mutex_unlock( &m_mutex );
+    // printCount( "new Pool", m_pool );
+    // printCount( "new Queue", m_queue );
+    tiny_mutex_unlock(&m_mutex);
 }
 
 void Proto::onSend(uint8_t addr, const uint8_t *buf, int len)
@@ -265,7 +265,7 @@ void Proto::onSend(uint8_t addr, const uint8_t *buf, int len)
         IPacket packet((char *)buf, len);
         packet.m_len = len;
         m_onTx(*this, packet);
-    }    
+    }
 }
 
 void Proto::onReadCb(void *udata, uint8_t addr, uint8_t *buf, int len)
@@ -283,11 +283,11 @@ void Proto::onSendCb(void *udata, uint8_t addr, const uint8_t *buf, int len)
 #if CONFIG_TINYHAL_THREAD_SUPPORT == 1
 void Proto::runTx()
 {
-    if (m_multithread)
+    if ( m_multithread )
     {
-        if (m_txDelay)
+        if ( m_txDelay )
         {
-            tiny_sleep( m_txDelay );
+            tiny_sleep(m_txDelay);
         }
         while ( !m_terminate )
         {
@@ -298,7 +298,7 @@ void Proto::runTx()
 
 void Proto::runRx()
 {
-    if (m_multithread)
+    if ( m_multithread )
     {
         while ( !m_terminate )
         {
@@ -307,7 +307,7 @@ void Proto::runRx()
     }
 }
 
-void Proto::setTxDelay( uint32_t delay )
+void Proto::setTxDelay(uint32_t delay)
 {
     m_txDelay = delay;
 }
@@ -327,7 +327,7 @@ void Proto::release(IPacket *message)
 
 void Proto::addRxPool(IPacket &message)
 {
-    tiny_mutex_lock( &m_mutex );
+    tiny_mutex_lock(&m_mutex);
     message.m_next = m_pool;
     message.m_prev = nullptr;
     if ( m_pool != nullptr )
@@ -335,9 +335,9 @@ void Proto::addRxPool(IPacket &message)
         m_pool->m_prev = &message;
     }
     m_pool = &message;
-    //printCount( "release Pool", m_pool );
-    //printCount( "release Queue", m_queue );
-    tiny_mutex_unlock( &m_mutex );
+    // printCount( "release Pool", m_pool );
+    // printCount( "release Queue", m_queue );
+    tiny_mutex_unlock(&m_mutex);
 }
 
 void Proto::setRxCallback(void (*onRx)(Proto &, IPacket &))
@@ -355,10 +355,10 @@ void Proto::setTxCallback(void (*onTx)(Proto &, IPacket &))
 #if defined(ARDUINO)
 
 SerialFdProto::SerialFdProto(HardwareSerial &port)
-    : Proto( false )
-    , m_layer( &port )
+    : Proto(false)
+    , m_layer(&port)
 {
-    setLink( m_layer );
+    setLink(m_layer);
 }
 
 ArduinoSerialFdLink &SerialFdProto::getLink()
@@ -367,10 +367,10 @@ ArduinoSerialFdLink &SerialFdProto::getLink()
 }
 
 SerialHdlcProto::SerialHdlcProto(HardwareSerial &port)
-    : Proto( false )
-    , m_layer( &port )
+    : Proto(false)
+    , m_layer(&port)
 {
-    setLink( m_layer );
+    setLink(m_layer);
 }
 
 ArduinoSerialHdlcLink &SerialHdlcProto::getLink()
@@ -381,10 +381,10 @@ ArduinoSerialHdlcLink &SerialHdlcProto::getLink()
 #else
 
 SerialFdProto::SerialFdProto(char *dev, bool multithread)
-    : Proto( multithread )
-    , m_layer( dev )
+    : Proto(multithread)
+    , m_layer(dev)
 {
-    setLink( m_layer );
+    setLink(m_layer);
 }
 
 SerialFdLink &SerialFdProto::getLink()
@@ -393,10 +393,10 @@ SerialFdLink &SerialFdProto::getLink()
 }
 
 SerialHdlcProto::SerialHdlcProto(char *dev, bool multithread)
-    : Proto( multithread )
-    , m_layer( dev )
+    : Proto(multithread)
+    , m_layer(dev)
 {
-    setLink( m_layer );
+    setLink(m_layer);
 }
 
 SerialHdlcLink &SerialHdlcProto::getLink()
