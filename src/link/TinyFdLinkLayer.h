@@ -75,6 +75,16 @@ public:
         m_bufferSize = size;
     }
 
+    int getStatus()
+    {
+        return tiny_fd_get_status(m_handle);
+    }
+
+    void setConnectEventCallback(void (*on_connect)(void *userData, uint8_t addr, bool connected))
+    {
+        m_onConnectEvent = on_connect;
+    }
+
 protected:
 
     int parseData(const uint8_t *data, int size);
@@ -83,6 +93,7 @@ protected:
 
 private:
     tiny_fd_handle_t m_handle = nullptr;
+    void (*m_onConnectEvent)(void *userData, uint8_t addr, bool connected) = nullptr;
     uint8_t *m_buffer = nullptr;
     int m_bufferSize = 0;
     uint8_t m_txWindow = 2;
