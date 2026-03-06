@@ -48,6 +48,7 @@ bool IFdLinkLayer::begin(on_frame_read_cb_t onReadCb, on_frame_send_cb_t onSendC
     init.on_read_cb = onReadCb;
     init.on_send_cb = onSendCb;
     init.on_connect_event_cb = m_onConnectEvent;
+    init.connect_event_user_data = m_userData;
     init.buffer = m_buffer;
     init.buffer_size = m_bufferSize;
     init.window_frames = m_txWindow;

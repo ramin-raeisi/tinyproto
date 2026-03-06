@@ -224,6 +224,12 @@ extern "C"
         on_connect_event_cb_t on_connect_event_cb;
 
         /**
+         * User data to pass to the connect event callback.
+         * If NULL, pdata will be used instead.
+         */
+        void *connect_event_user_data;
+
+        /**
          * Callback to log frames. Can be NULL.
          * If this callback is set, it will be called for every frame sent or received.
          * This is useful for debugging purposes.

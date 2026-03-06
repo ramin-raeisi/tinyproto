@@ -90,7 +90,7 @@ static void __switch_to_connected_state(tiny_fd_handle_t handle, uint8_t peer)
         if ( handle->on_connect_event_cb )
         {
             tiny_mutex_unlock(&handle->frames.mutex);
-            handle->on_connect_event_cb(handle->user_data,
+            handle->on_connect_event_cb(handle->connect_event_user_data ? handle->connect_event_user_data : handle->user_data,
                                        __is_primary_station( handle ) ? (__peer_to_address_field( handle, peer ) >> 2) : TINY_FD_PRIMARY_ADDR,
                                        true);
             tiny_mutex_lock(&handle->frames.mutex);
@@ -115,7 +115,7 @@ static void __switch_to_disconnected_state(tiny_fd_handle_t handle, uint8_t peer
         if ( handle->on_connect_event_cb )
         {
             tiny_mutex_unlock(&handle->frames.mutex);
-            handle->on_connect_event_cb(handle->user_data,
+            handle->on_connect_event_cb(handle->connect_event_user_data ? handle->connect_event_user_data : handle->user_data,
                                        __is_primary_station( handle ) ? (__peer_to_address_field( handle, peer ) >> 2) : TINY_FD_PRIMARY_ADDR,
                                         false);
             tiny_mutex_lock(&handle->frames.mutex);
@@ -379,6 +379,7 @@ int tiny_fd_init(tiny_fd_handle_t *handle, tiny_fd_init_t *init)
     protocol->on_read_cb = init->on_read_cb;
     protocol->on_send_cb = init->on_send_cb;
     protocol->on_connect_event_cb = init->on_connect_event_cb;
+    protocol->connect_event_user_data = init->connect_event_user_data;
     protocol->log_frame_cb = init->log_frame_cb;
     protocol->send_timeout = init->send_timeout;
     // By default assign primary address

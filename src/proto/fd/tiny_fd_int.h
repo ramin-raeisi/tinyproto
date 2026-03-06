@@ -108,6 +108,8 @@ extern "C"
         on_frame_send_cb_t on_send_cb;
         /// Callback to get connect/disconnect notification
         on_connect_event_cb_t on_connect_event_cb;
+        /// User data for connect event callback (if NULL, user_data is used)
+        void *connect_event_user_data;
         /// Callback to log frames
         tiny_fd_log_frame_cb_t log_frame_cb;
         /// hdlc information

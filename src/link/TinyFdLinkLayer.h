@@ -85,6 +85,11 @@ public:
         m_onConnectEvent = on_connect;
     }
 
+    void setUserData(void *userData)
+    {
+        m_userData = userData;
+    }
+
 protected:
 
     int parseData(const uint8_t *data, int size);
@@ -94,6 +99,7 @@ protected:
 private:
     tiny_fd_handle_t m_handle = nullptr;
     void (*m_onConnectEvent)(void *userData, uint8_t addr, bool connected) = nullptr;
+    void *m_userData = nullptr;
     uint8_t *m_buffer = nullptr;
     int m_bufferSize = 0;
     uint8_t m_txWindow = 2;
